@@ -1,0 +1,6 @@
+@AirWatch.Api_HostAddress = http://localhost:5119
+
+GET {{AirWatch.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

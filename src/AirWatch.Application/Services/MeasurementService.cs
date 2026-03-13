@@ -10,7 +10,7 @@ public class MeasurementService(IMeasurementRepository measurementRepository, IS
     public async Task<MeasurementDto> RecordAsync(CreateMeasurementDto dto)
     {
         var sensor = await sensorRepository.GetByExternalIdAsync(dto.SensorId)
-            ?? throw new NotFoundException($"Sensor '{dto.SensorId}' not found.");
+            ?? throw new NotFoundException($"Sensor '{dto.SensorId}' não encontrado.");
 
         var measurement = new Measurement
         {
@@ -30,7 +30,7 @@ public class MeasurementService(IMeasurementRepository measurementRepository, IS
     public async Task<IEnumerable<MeasurementDto>> GetBySensorExternalIdAsync(string externalId, int limit = 100)
     {
         var sensor = await sensorRepository.GetByExternalIdAsync(externalId)
-            ?? throw new NotFoundException($"Sensor '{externalId}' not found.");
+            ?? throw new NotFoundException($"Sensor '{externalId}' não encontrado.");
 
         var measurements = await measurementRepository.GetBySensorIdAsync(sensor.Id, limit);
 

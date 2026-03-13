@@ -4,19 +4,19 @@ namespace AirWatch.Application.DTOs.Measurements;
 
 public class CreateMeasurementDto
 {
-    [Required(ErrorMessage = "SensorId is required.")]
-    [StringLength(100, ErrorMessage = "SensorId must be at most 100 characters.")]
+    [Required(ErrorMessage = "O identificador do sensor (sensorId) é obrigatório.")]
+    [StringLength(100, ErrorMessage = "O identificador do sensor deve ter no máximo 100 caracteres.")]
     public string SensorId { get; init; } = string.Empty;
 
-    [Range(-100, 10000, ErrorMessage = "GasValue must be between -100 and 10000.")]
+    [Range(-100, 10000, ErrorMessage = "O valor de gás deve estar entre -100 e 10000.")]
     public double GasValue { get; init; }
 
-    [Range(-50, 100, ErrorMessage = "Temperature must be between -50°C and 100°C.")]
+    [Range(-50, 100, ErrorMessage = "A temperatura deve estar entre -50°C e 100°C.")]
     public double Temperature { get; init; }
 
-    [Range(0, 100, ErrorMessage = "Humidity must be between 0% and 100%.")]
+    [Range(0, 100, ErrorMessage = "A umidade deve estar entre 0% e 100%.")]
     public double Humidity { get; init; }
 
-    [Required(ErrorMessage = "Timestamp is required.")]
+    [Required(ErrorMessage = "O timestamp da medição é obrigatório.")]
     public DateTime Timestamp { get; init; }
 }

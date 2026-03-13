@@ -12,7 +12,7 @@ public class UserService(IUserRepository userRepository, IPasswordHasher passwor
     {
         var existing = await userRepository.GetByEmailAsync(dto.Email);
         if (existing is not null)
-            throw new ConflictException($"Email '{dto.Email}' is already in use.");
+            throw new ConflictException($"Já existe um usuário cadastrado com o e-mail '{dto.Email}'.");
 
         var user = new User
         {
@@ -37,7 +37,7 @@ public class UserService(IUserRepository userRepository, IPasswordHasher passwor
     public async Task<UserDto> GetByIdAsync(Guid id)
     {
         var user = await userRepository.GetByIdAsync(id)
-            ?? throw new NotFoundException($"User with id '{id}' not found.");
+            ?? throw new NotFoundException($"Usuário com id '{id}' não encontrado.");
 
         return ToDto(user);
     }

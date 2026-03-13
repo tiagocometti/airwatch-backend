@@ -4,14 +4,14 @@ namespace AirWatch.Application.DTOs.Sensors;
 
 public class RegisterSensorDto
 {
-    [Required(ErrorMessage = "ExternalId is required.")]
-    [StringLength(100, ErrorMessage = "ExternalId must be at most 100 characters.")]
+    [Required(ErrorMessage = "O identificador externo do sensor (externalId) é obrigatório.")]
+    [StringLength(100, ErrorMessage = "O identificador externo deve ter no máximo 100 caracteres.")]
     public string ExternalId { get; init; } = string.Empty;
 
-    [Required(ErrorMessage = "Name is required.")]
-    [StringLength(150, ErrorMessage = "Name must be at most 150 characters.")]
+    [Required(ErrorMessage = "O nome do sensor é obrigatório.")]
+    [StringLength(150, ErrorMessage = "O nome do sensor deve ter no máximo 150 caracteres.")]
     public string Name { get; init; } = string.Empty;
 
-    [StringLength(200, ErrorMessage = "Location must be at most 200 characters.")]
+    [StringLength(200, ErrorMessage = "A localização deve ter no máximo 200 caracteres.")]
     public string Location { get; init; } = string.Empty;
 }

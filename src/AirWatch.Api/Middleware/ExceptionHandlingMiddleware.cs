@@ -14,7 +14,7 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Unhandled exception: {Message}", ex.Message);
+            logger.LogError(ex, "Erro não tratado: {Message}", ex.Message);
             await HandleExceptionAsync(context, ex);
         }
     }
@@ -23,10 +23,10 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
     {
         var (statusCode, title) = exception switch
         {
-            NotFoundException => (StatusCodes.Status404NotFound, "Resource not found"),
-            ConflictException => (StatusCodes.Status409Conflict, "Conflict"),
-            ArgumentException => (StatusCodes.Status400BadRequest, "Invalid argument"),
-            _ => (StatusCodes.Status500InternalServerError, "An unexpected error occurred")
+            NotFoundException => (StatusCodes.Status404NotFound, "Recurso não encontrado"),
+            ConflictException => (StatusCodes.Status409Conflict, "Conflito"),
+            ArgumentException => (StatusCodes.Status400BadRequest, "Argumento inválido"),
+            _ => (StatusCodes.Status500InternalServerError, "Ocorreu um erro inesperado no servidor")
         };
 
         var problem = new ProblemDetails

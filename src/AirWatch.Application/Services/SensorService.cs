@@ -11,7 +11,7 @@ public class SensorService(ISensorRepository sensorRepository)
     {
         var existing = await sensorRepository.GetByExternalIdAsync(dto.ExternalId);
         if (existing is not null)
-            throw new ConflictException($"Sensor '{dto.ExternalId}' already registered.");
+            throw new ConflictException($"Já existe um sensor cadastrado com o identificador '{dto.ExternalId}'.");
 
         var sensor = new Sensor
         {

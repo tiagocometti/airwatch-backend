@@ -1,9 +1,13 @@
 using System.Reflection;
+using System.Text;
 using AirWatch.Api.Middleware;
 using AirWatch.Application.Services;
 using AirWatch.Infrastructure;
+using AirWatch.Infrastructure.BackgroundServices;
 using AirWatch.Infrastructure.Data;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -25,9 +29,18 @@ builder.Services.AddSwaggerGen(options =>
 
             ## Recursos disponíveis
 
+            ## Como autenticar
+
+            1. Cadastre um usuário em `POST /api/users`
+            2. Faça login em `POST /api/auth/login` e copie o `token` retornado
+            3. Clique no botão **Authorize** acima e cole o token no campo `Bearer {token}`
+
+            ## Recursos disponíveis
+
+            - **Auth** — login e geração de token JWT
             - **Sensores** — cadastro e consulta dos dispositivos registrados no sistema
             - **Medições** — registro e consulta dos dados coletados pelos sensores
-            - **Usuários** — cadastro de usuários do sistema (autenticação será implementada futuramente)
+            - **Usuários** — cadastro de usuários do sistema
 
             ## Códigos de resposta
 
@@ -36,10 +49,33 @@ builder.Services.AddSwaggerGen(options =>
             | 200 | Requisição bem-sucedida |
             | 201 | Recurso criado com sucesso |
             | 400 | Dados inválidos na requisição |
+            | 401 | Não autenticado — token ausente ou inválido |
             | 404 | Recurso não encontrado |
             | 409 | Conflito — recurso já existe |
             | 500 | Erro interno do servidor |
             """
+    });
+
+    // Botão de autenticação no Swagger
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Informe o token JWT obtido em POST /api/auth/login.\n\nExemplo: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+            },
+            []
+        }
     });
 
     var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
@@ -47,11 +83,36 @@ builder.Services.AddSwaggerGen(options =>
     options.IncludeXmlComments(xmlPath);
 });
 
+// JWT Authentication
+var jwtSecret = builder.Configuration["Jwt:Secret"]!;
+var jwtIssuer = builder.Configuration["Jwt:Issuer"]!;
+var jwtAudience = builder.Configuration["Jwt:Audience"]!;
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtIssuer,
+            ValidAudience = jwtAudience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret))
+        };
+    });
+
 builder.Services.AddInfrastructure(builder.Configuration);
 
+builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<MeasurementService>();
 builder.Services.AddScoped<SensorService>();
 builder.Services.AddScoped<UserService>();
+
+// Simulador MQTT (ativado via appsettings)
+if (builder.Configuration.GetValue<bool>("Simulator:Enabled"))
+    builder.Services.AddHostedService<MqttSimulatorService>();
 
 builder.Services.AddCors(options =>
 {
@@ -62,6 +123,12 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod();
     });
 });
+
+// Health Check
+builder.Services.AddHealthChecks()
+    .AddNpgSql(builder.Configuration.GetConnectionString("DefaultConnection")!,
+               name: "postgresql",
+               tags: ["db", "ready"]);
 
 var app = builder.Build();
 
@@ -82,7 +149,9 @@ if (app.Environment.IsDevelopment())
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseCors("AllowAngular");
 app.UseHttpsRedirection();
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 app.Run();

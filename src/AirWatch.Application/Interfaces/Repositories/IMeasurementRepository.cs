@@ -5,7 +5,7 @@ namespace AirWatch.Application.Interfaces.Repositories;
 public interface IMeasurementRepository
 {
     Task AddAsync(Measurement measurement);
-    Task<IEnumerable<Measurement>> GetBySensorIdAsync(Guid sensorId, int limit = 100);
-    Task<IEnumerable<Measurement>> GetByPeriodAsync(DateTime from, DateTime to);
-    Task<IEnumerable<Measurement>> GetLatestAsync(int limit = 50);
+    Task<(IEnumerable<Measurement> Items, int TotalCount)> GetBySensorIdAsync(Guid sensorId, int page, int pageSize);
+    Task<(IEnumerable<Measurement> Items, int TotalCount)> GetByPeriodAsync(DateTime from, DateTime to, int page, int pageSize);
+    Task<(IEnumerable<Measurement> Items, int TotalCount)> GetLatestAsync(int page, int pageSize);
 }

@@ -1,3 +1,4 @@
+using AirWatch.Application.DTOs.Common;
 using AirWatch.Application.DTOs.Measurements;
 using AirWatch.Application.Interfaces.Repositories;
 using AirWatch.Domain.Entities;
@@ -14,12 +15,12 @@ public class MeasurementService(IMeasurementRepository measurementRepository, IS
 
         var measurement = new Measurement
         {
-            Id = Guid.NewGuid(),
-            SensorId = sensor.Id,
-            GasValue = dto.GasValue,
+            Id          = Guid.NewGuid(),
+            SensorId    = sensor.Id,
+            GasValue    = dto.GasValue,
             Temperature = dto.Temperature,
-            Humidity = dto.Humidity,
-            Timestamp = dto.Timestamp
+            Humidity    = dto.Humidity,
+            Timestamp   = dto.Timestamp
         };
 
         await measurementRepository.AddAsync(measurement);
@@ -27,28 +28,46 @@ public class MeasurementService(IMeasurementRepository measurementRepository, IS
         return ToDto(measurement, sensor.ExternalId);
     }
 
-    public async Task<IEnumerable<MeasurementDto>> GetBySensorExternalIdAsync(string externalId, int limit = 100)
+    public async Task<PagedResultDto<MeasurementDto>> GetBySensorExternalIdAsync(string externalId, int page, int pageSize)
     {
         var sensor = await sensorRepository.GetByExternalIdAsync(externalId)
             ?? throw new NotFoundException($"Sensor '{externalId}' não encontrado.");
 
-        var measurements = await measurementRepository.GetBySensorIdAsync(sensor.Id, limit);
+        var (items, total) = await measurementRepository.GetBySensorIdAsync(sensor.Id, page, pageSize);
 
-        return measurements.Select(m => ToDto(m, externalId));
+        return new PagedResultDto<MeasurementDto>
+        {
+            Items      = items.Select(m => ToDto(m, externalId)),
+            TotalCount = total,
+            Page       = page,
+            PageSize   = pageSize
+        };
     }
 
-    public async Task<IEnumerable<MeasurementDto>> GetLatestAsync(int limit = 50)
+    public async Task<PagedResultDto<MeasurementDto>> GetLatestAsync(int page, int pageSize)
     {
-        var measurements = await measurementRepository.GetLatestAsync(limit);
+        var (items, total) = await measurementRepository.GetLatestAsync(page, pageSize);
 
-        return measurements.Select(m => ToDto(m, m.Sensor.ExternalId));
+        return new PagedResultDto<MeasurementDto>
+        {
+            Items      = items.Select(m => ToDto(m, m.Sensor.ExternalId)),
+            TotalCount = total,
+            Page       = page,
+            PageSize   = pageSize
+        };
     }
 
-    public async Task<IEnumerable<MeasurementDto>> GetByPeriodAsync(DateTime from, DateTime to)
+    public async Task<PagedResultDto<MeasurementDto>> GetByPeriodAsync(DateTime from, DateTime to, int page, int pageSize)
     {
-        var measurements = await measurementRepository.GetByPeriodAsync(from, to);
+        var (items, total) = await measurementRepository.GetByPeriodAsync(from, to, page, pageSize);
 
-        return measurements.Select(m => ToDto(m, m.Sensor.ExternalId));
+        return new PagedResultDto<MeasurementDto>
+        {
+            Items      = items.Select(m => ToDto(m, m.Sensor.ExternalId)),
+            TotalCount = total,
+            Page       = page,
+            PageSize   = pageSize
+        };
     }
 
     private static MeasurementDto ToDto(Measurement m, string sensorExternalId) =>

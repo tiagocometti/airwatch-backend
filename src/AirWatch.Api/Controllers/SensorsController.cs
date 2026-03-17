@@ -1,5 +1,6 @@
 using AirWatch.Application.DTOs.Sensors;
 using AirWatch.Application.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AirWatch.Api.Controllers;
@@ -7,6 +8,7 @@ namespace AirWatch.Api.Controllers;
 /// <summary>
 /// Gerenciamento dos sensores cadastrados no sistema AirWatch.
 /// </summary>
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]

@@ -1,5 +1,6 @@
 using AirWatch.Application.DTOs.Users;
 using AirWatch.Application.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AirWatch.Api.Controllers;
@@ -7,6 +8,7 @@ namespace AirWatch.Api.Controllers;
 /// <summary>
 /// Gerenciamento dos usuários do sistema AirWatch.
 /// </summary>
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
@@ -19,8 +21,8 @@ public class UsersController(UserService userService) : ControllerBase
     /// A senha é armazenada de forma segura utilizando hash BCrypt — nunca em texto puro.
     /// Não é possível cadastrar dois usuários com o mesmo e-mail.
     ///
-    /// **Atenção:** autenticação via JWT será implementada em uma versão futura.
-    /// Por enquanto este endpoint apenas persiste o usuário.
+    /// Este endpoint é **público** — não requer autenticação.
+    /// Após o cadastro, utilize <c>POST /api/auth/login</c> para obter o token JWT.
     ///
     /// Exemplo de requisição:
     ///
@@ -36,6 +38,7 @@ public class UsersController(UserService userService) : ControllerBase
     /// <response code="201">Usuário cadastrado com sucesso.</response>
     /// <response code="400">Dados inválidos — verifique e-mail e tamanho mínimo da senha (6 caracteres).</response>
     /// <response code="409">Já existe um usuário cadastrado com este e-mail.</response>
+    [AllowAnonymous]
     [HttpPost]
     [ProducesResponseType(typeof(UserDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

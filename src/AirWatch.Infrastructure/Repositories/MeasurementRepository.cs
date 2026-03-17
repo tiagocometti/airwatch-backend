@@ -13,34 +13,53 @@ public class MeasurementRepository(AppDbContext context) : IMeasurementRepositor
         await context.SaveChangesAsync();
     }
 
-    public async Task<IEnumerable<Measurement>> GetBySensorIdAsync(Guid sensorId, int limit = 100)
+    public async Task<(IEnumerable<Measurement> Items, int TotalCount)> GetBySensorIdAsync(Guid sensorId, int page, int pageSize)
     {
-        return await context.Measurements
+        var query = context.Measurements
             .Where(m => m.SensorId == sensorId)
-            .OrderByDescending(m => m.Timestamp)
-            .Take(limit)
+            .OrderByDescending(m => m.Timestamp);
+
+        var total = await query.CountAsync();
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Include(m => m.Sensor)
             .AsNoTracking()
             .ToListAsync();
+
+        return (items, total);
     }
 
-    public async Task<IEnumerable<Measurement>> GetByPeriodAsync(DateTime from, DateTime to)
+    public async Task<(IEnumerable<Measurement> Items, int TotalCount)> GetByPeriodAsync(DateTime from, DateTime to, int page, int pageSize)
     {
-        return await context.Measurements
+        var query = context.Measurements
             .Where(m => m.Timestamp >= from && m.Timestamp <= to)
-            .OrderByDescending(m => m.Timestamp)
+            .OrderByDescending(m => m.Timestamp);
+
+        var total = await query.CountAsync();
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Include(m => m.Sensor)
             .AsNoTracking()
             .ToListAsync();
+
+        return (items, total);
     }
 
-    public async Task<IEnumerable<Measurement>> GetLatestAsync(int limit = 50)
+    public async Task<(IEnumerable<Measurement> Items, int TotalCount)> GetLatestAsync(int page, int pageSize)
     {
-        return await context.Measurements
-            .OrderByDescending(m => m.Timestamp)
-            .Take(limit)
+        var query = context.Measurements
+            .OrderByDescending(m => m.Timestamp);
+
+        var total = await query.CountAsync();
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Include(m => m.Sensor)
             .AsNoTracking()
             .ToListAsync();
+
+        return (items, total);
     }
 }

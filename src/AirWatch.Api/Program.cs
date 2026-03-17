@@ -114,6 +114,10 @@ builder.Services.AddScoped<UserService>();
 if (builder.Configuration.GetValue<bool>("Simulator:Enabled"))
     builder.Services.AddHostedService<MqttSimulatorService>();
 
+// Assinante MQTT real (ativado via appsettings)
+if (builder.Configuration.GetValue<bool>("MqttSubscriber:Enabled"))
+    builder.Services.AddHostedService<MqttSubscriberService>();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngular", policy =>

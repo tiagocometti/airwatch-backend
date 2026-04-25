@@ -24,10 +24,8 @@ builder.Services.AddSwaggerGen(options =>
         Description = """
             API do sistema **AirWatch** — monitoramento da qualidade do ar via IoT.
 
-            Sensores da série MQ conectados a um ESP8266 enviam dados ambientais (gás, temperatura e umidade)
-            via MQTT. Esta API recebe, armazena e disponibiliza essas medições para visualização no frontend.
-
-            ## Recursos disponíveis
+            Sensores MQ3, MQ5 e MQ135 conectados a um Arduino com placa ESP enviam leituras
+            via MQTT. Esta API recebe, armazena e disponibiliza as medições para o frontend Angular.
 
             ## Como autenticar
 
@@ -38,8 +36,8 @@ builder.Services.AddSwaggerGen(options =>
             ## Recursos disponíveis
 
             - **Auth** — login e geração de token JWT
-            - **Sensores** — cadastro e consulta dos dispositivos registrados no sistema
-            - **Medições** — registro e consulta dos dados coletados pelos sensores
+            - **Dispositivos** — cadastro e consulta dos Arduinos registrados no sistema
+            - **Medições** — consulta dos dados coletados pelos sensores MQ (ppm, tensão, Rs/R0)
             - **Usuários** — cadastro de usuários do sistema
 
             ## Códigos de resposta
@@ -107,7 +105,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<MeasurementService>();
-builder.Services.AddScoped<SensorService>();
+builder.Services.AddScoped<DeviceService>();
 builder.Services.AddScoped<UserService>();
 
 // Simulador MQTT (ativado via appsettings)

@@ -17,7 +17,7 @@ public static class DependencyInjection
             options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
 
         services.AddScoped<IMeasurementRepository, MeasurementRepository>();
-        services.AddScoped<ISensorRepository, SensorRepository>();
+        services.AddScoped<IDeviceRepository, DeviceRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
 
         services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();

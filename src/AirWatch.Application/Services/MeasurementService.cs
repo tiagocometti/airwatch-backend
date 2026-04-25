@@ -6,34 +6,36 @@ using AirWatch.Domain.Exceptions;
 
 namespace AirWatch.Application.Services;
 
-public class MeasurementService(IMeasurementRepository measurementRepository, ISensorRepository sensorRepository)
+public class MeasurementService(IMeasurementRepository measurementRepository, IDeviceRepository deviceRepository)
 {
-    public async Task<MeasurementDto> RecordAsync(CreateMeasurementDto dto)
+    public async Task RecordManyAsync(IEnumerable<CreateMeasurementDto> dtos)
     {
-        var sensor = await sensorRepository.GetByExternalIdAsync(dto.SensorId)
-            ?? throw new NotFoundException($"Sensor '{dto.SensorId}' não encontrado.");
-
-        var measurement = new Measurement
+        var measurements = dtos.Select(dto => new Measurement
         {
-            Id          = Guid.NewGuid(),
-            SensorId    = sensor.Id,
-            GasValue    = dto.GasValue,
-            Temperature = dto.Temperature,
-            Humidity    = dto.Humidity,
-            Timestamp   = dto.Timestamp
-        };
+            Id         = Guid.NewGuid(),
+            DeviceId   = dto.DeviceId,
+            SensorType = dto.SensorType,
+            Calibrated = dto.Calibrated,
+            AdcRaw     = dto.AdcRaw,
+            VoltageV   = dto.VoltageV,
+            RsOhm      = dto.RsOhm,
+            RsR0Ratio  = dto.RsR0Ratio,
+            Ppm        = dto.Ppm,
+            Timestamp  = dto.Timestamp
+        });
 
-        await measurementRepository.AddAsync(measurement);
-
-        return ToDto(measurement, sensor.ExternalId);
+        await measurementRepository.AddManyAsync(measurements);
     }
 
-    public async Task<PagedResultDto<MeasurementDto>> GetBySensorExternalIdAsync(string externalId, int page, int pageSize)
+    public async Task<PagedResultDto<MeasurementDto>> GetByDeviceExternalIdAsync(
+        string externalId, string? sensorType, int page, int pageSize)
     {
-        var sensor = await sensorRepository.GetByExternalIdAsync(externalId)
-            ?? throw new NotFoundException($"Sensor '{externalId}' não encontrado.");
+        var device = await deviceRepository.GetByExternalIdAsync(externalId)
+            ?? throw new NotFoundException($"Dispositivo '{externalId}' não encontrado.");
 
-        var (items, total) = await measurementRepository.GetBySensorIdAsync(sensor.Id, page, pageSize);
+        var (items, total) = string.IsNullOrEmpty(sensorType)
+            ? await measurementRepository.GetByDeviceIdAsync(device.Id, page, pageSize)
+            : await measurementRepository.GetByDeviceIdAndSensorTypeAsync(device.Id, sensorType, page, pageSize);
 
         return new PagedResultDto<MeasurementDto>
         {
@@ -50,7 +52,7 @@ public class MeasurementService(IMeasurementRepository measurementRepository, IS
 
         return new PagedResultDto<MeasurementDto>
         {
-            Items      = items.Select(m => ToDto(m, m.Sensor.ExternalId)),
+            Items      = items.Select(m => ToDto(m, m.Device.ExternalId)),
             TotalCount = total,
             Page       = page,
             PageSize   = pageSize
@@ -63,13 +65,13 @@ public class MeasurementService(IMeasurementRepository measurementRepository, IS
 
         return new PagedResultDto<MeasurementDto>
         {
-            Items      = items.Select(m => ToDto(m, m.Sensor.ExternalId)),
+            Items      = items.Select(m => ToDto(m, m.Device.ExternalId)),
             TotalCount = total,
             Page       = page,
             PageSize   = pageSize
         };
     }
 
-    private static MeasurementDto ToDto(Measurement m, string sensorExternalId) =>
-        new(m.Id, m.SensorId, sensorExternalId, m.GasValue, m.Temperature, m.Humidity, m.Timestamp);
+    private static MeasurementDto ToDto(Measurement m, string deviceExternalId) =>
+        new(m.Id, deviceExternalId, m.SensorType, m.Calibrated, m.AdcRaw, m.VoltageV, m.RsOhm, m.RsR0Ratio, m.Ppm, m.Timestamp);
 }

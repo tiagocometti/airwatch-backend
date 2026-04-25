@@ -32,38 +32,45 @@ public class MqttSimulatorService(
     private async Task SimulateAsync(CancellationToken stoppingToken)
     {
         using var scope = scopeFactory.CreateScope();
-        var sensorRepository = scope.ServiceProvider.GetRequiredService<ISensorRepository>();
+        var deviceRepository = scope.ServiceProvider.GetRequiredService<IDeviceRepository>();
         var measurementService = scope.ServiceProvider.GetRequiredService<MeasurementService>();
 
-        var sensors = await sensorRepository.GetAllAsync();
-        var activeSensors = sensors.Where(s => s.IsActive).ToList();
+        var devices = await deviceRepository.GetAllAsync();
+        var activeDevices = devices.Where(d => d.IsActive).ToList();
 
-        if (activeSensors.Count == 0)
+        if (activeDevices.Count == 0)
         {
-            logger.LogDebug("Simulador: nenhum sensor ativo encontrado.");
+            logger.LogDebug("Simulador: nenhum dispositivo ativo encontrado.");
             return;
         }
 
-        foreach (var sensor in activeSensors)
+        var sensorTypes = new[] { "mq3", "mq5", "mq135" };
+        var timestamp = DateTime.UtcNow;
+
+        foreach (var device in activeDevices)
         {
             if (stoppingToken.IsCancellationRequested) break;
 
-            var dto = new CreateMeasurementDto
+            var dtos = sensorTypes.Select(sensorType => new CreateMeasurementDto
             {
-                SensorId   = sensor.ExternalId,
-                GasValue   = _random.Next(200, 801),
-                Temperature = Math.Round(20.0 + _random.NextDouble() * 15.0, 1),
-                Humidity   = Math.Round(40.0 + _random.NextDouble() * 40.0, 1),
-                Timestamp  = DateTime.UtcNow
-            };
+                DeviceId   = device.Id,
+                SensorType = sensorType,
+                Calibrated = true,
+                Timestamp  = timestamp,
+                AdcRaw     = _random.Next(300, 600),
+                VoltageV   = Math.Round(1.5 + _random.NextDouble() * 1.5, 2),
+                RsOhm      = Math.Round(8000.0 + _random.NextDouble() * 6000.0, 1),
+                RsR0Ratio  = Math.Round(0.6 + _random.NextDouble() * 0.6, 2),
+                Ppm        = Math.Round(50.0 + _random.NextDouble() * 600.0, 1)
+            }).ToList();
 
-            await measurementService.RecordAsync(dto);
+            await measurementService.RecordManyAsync(dtos);
 
             logger.LogDebug(
-                "Simulador: medição gerada para '{SensorId}' — gás={Gas}, temp={Temp}°C, umidade={Humidity}%",
-                sensor.ExternalId, dto.GasValue, dto.Temperature, dto.Humidity);
+                "Simulador: {Count} medições geradas para '{DeviceId}'.",
+                dtos.Count, device.ExternalId);
         }
 
-        logger.LogInformation("Simulador: {Count} medição(ões) gerada(s).", activeSensors.Count);
+        logger.LogInformation("Simulador: medições geradas para {Count} dispositivo(s).", activeDevices.Count);
     }
 }

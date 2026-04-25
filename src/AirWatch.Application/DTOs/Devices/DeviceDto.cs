@@ -1,6 +1,6 @@
-namespace AirWatch.Application.DTOs.Sensors;
+namespace AirWatch.Application.DTOs.Devices;
 
-public record SensorDto(
+public record DeviceDto(
     Guid Id,
     string ExternalId,
     string Name,

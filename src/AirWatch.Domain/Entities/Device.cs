@@ -1,6 +1,6 @@
 namespace AirWatch.Domain.Entities;
 
-public class Sensor
+public class Device
 {
     public Guid Id { get; set; }
     public string ExternalId { get; set; } = string.Empty;

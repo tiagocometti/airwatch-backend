@@ -2,10 +2,13 @@ namespace AirWatch.Application.DTOs.Measurements;
 
 public record MeasurementDto(
     Guid Id,
-    Guid SensorId,
-    string SensorExternalId,
-    double GasValue,
-    double Temperature,
-    double Humidity,
+    string DeviceExternalId,
+    string SensorType,
+    bool Calibrated,
+    int AdcRaw,
+    double VoltageV,
+    double RsOhm,
+    double RsR0Ratio,
+    double Ppm,
     DateTime Timestamp
 );

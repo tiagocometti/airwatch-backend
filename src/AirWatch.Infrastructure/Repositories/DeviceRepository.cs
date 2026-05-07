@@ -21,10 +21,26 @@ public class DeviceRepository(AppDbContext context) : IDeviceRepository
             .FirstOrDefaultAsync(d => d.ExternalId == externalId);
     }
 
+    public async Task<Device?> GetByExternalIdAsync(string externalId, Guid userId)
+    {
+        return await context.Devices
+            .AsNoTracking()
+            .FirstOrDefaultAsync(d => d.ExternalId == externalId && d.UserId == userId);
+    }
+
     public async Task<IEnumerable<Device>> GetAllAsync()
     {
         return await context.Devices
             .AsNoTracking()
+            .OrderBy(d => d.Name)
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<Device>> GetAllByUserAsync(Guid userId)
+    {
+        return await context.Devices
+            .AsNoTracking()
+            .Where(d => d.UserId == userId)
             .OrderBy(d => d.Name)
             .ToListAsync();
     }
@@ -39,5 +55,29 @@ public class DeviceRepository(AppDbContext context) : IDeviceRepository
     {
         context.Devices.Update(device);
         await context.SaveChangesAsync();
+    }
+
+    public async Task UpdateLastSeenAsync(Guid deviceId, DateTime lastSeen)
+    {
+        await context.Devices
+            .Where(d => d.Id == deviceId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(d => d.LastSeen, lastSeen));
+    }
+
+    public async Task SetOnlineAsync(string externalId, DateTime lastSeen)
+    {
+        await context.Devices
+            .Where(d => d.ExternalId == externalId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(d => d.IsOnline, true)
+                .SetProperty(d => d.LastSeen, lastSeen));
+    }
+
+    public async Task SetOfflineAsync(string externalId)
+    {
+        await context.Devices
+            .Where(d => d.ExternalId == externalId)
+            .ExecuteUpdateAsync(s => s.SetProperty(d => d.IsOnline, false));
     }
 }

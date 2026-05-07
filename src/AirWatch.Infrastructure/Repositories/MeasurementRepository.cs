@@ -48,10 +48,11 @@ public class MeasurementRepository(AppDbContext context) : IMeasurementRepositor
         return (items, total);
     }
 
-    public async Task<(IEnumerable<Measurement> Items, int TotalCount)> GetByPeriodAsync(DateTime from, DateTime to, int page, int pageSize)
+    public async Task<(IEnumerable<Measurement> Items, int TotalCount)> GetByPeriodAsync(
+        Guid userId, DateTime from, DateTime to, int page, int pageSize)
     {
         var query = context.Measurements
-            .Where(m => m.Timestamp >= from && m.Timestamp <= to)
+            .Where(m => m.Device.UserId == userId && m.Timestamp >= from && m.Timestamp <= to)
             .OrderByDescending(m => m.Timestamp);
 
         var total = await query.CountAsync();
@@ -65,9 +66,10 @@ public class MeasurementRepository(AppDbContext context) : IMeasurementRepositor
         return (items, total);
     }
 
-    public async Task<(IEnumerable<Measurement> Items, int TotalCount)> GetLatestAsync(int page, int pageSize)
+    public async Task<(IEnumerable<Measurement> Items, int TotalCount)> GetLatestAsync(Guid userId, int page, int pageSize)
     {
         var query = context.Measurements
+            .Where(m => m.Device.UserId == userId)
             .OrderByDescending(m => m.Timestamp);
 
         var total = await query.CountAsync();
@@ -79,5 +81,15 @@ public class MeasurementRepository(AppDbContext context) : IMeasurementRepositor
             .ToListAsync();
 
         return (items, total);
+    }
+
+    public async Task<Dictionary<Guid, DateTime>> GetLatestTimestampsByDeviceIdsAsync(IEnumerable<Guid> deviceIds)
+    {
+        var ids = deviceIds.ToList();
+        return await context.Measurements
+            .Where(m => ids.Contains(m.DeviceId))
+            .GroupBy(m => m.DeviceId)
+            .Select(g => new { DeviceId = g.Key, Latest = g.Max(m => m.Timestamp) })
+            .ToDictionaryAsync(x => x.DeviceId, x => x.Latest);
     }
 }

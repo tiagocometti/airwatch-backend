@@ -29,8 +29,22 @@ public class DeviceConfiguration : IEntityTypeConfiguration<Device>
         builder.Property(d => d.IsActive)
             .IsRequired();
 
+        builder.Property(d => d.IsOnline)
+            .IsRequired();
+
+        builder.Property(d => d.LastSeen);
+
         builder.Property(d => d.RegisteredAt)
             .IsRequired();
+
+        builder.Property(d => d.UserId).IsRequired();
+
+        builder.HasIndex(d => d.UserId);
+
+        builder.HasOne(d => d.User)
+            .WithMany()
+            .HasForeignKey(d => d.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasMany(d => d.Measurements)
             .WithOne(m => m.Device)

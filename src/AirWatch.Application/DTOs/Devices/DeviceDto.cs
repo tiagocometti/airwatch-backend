@@ -6,5 +6,7 @@ public record DeviceDto(
     string Name,
     string Location,
     bool IsActive,
+    bool IsOnline,
+    DateTime? LastSeen,
     DateTime RegisteredAt
 );

@@ -1,6 +1,9 @@
 using System.Reflection;
 using System.Text;
+using AirWatch.Api.Hubs;
 using AirWatch.Api.Middleware;
+using AirWatch.Api.Services;
+using AirWatch.Application.Interfaces;
 using AirWatch.Application.Services;
 using AirWatch.Infrastructure;
 using AirWatch.Infrastructure.BackgroundServices;
@@ -99,7 +102,22 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = jwtAudience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret))
         };
+        // SignalR envia o token via query string em conexões WebSocket
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = ctx =>
+            {
+                var token = ctx.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(token) &&
+                    ctx.HttpContext.Request.Path.StartsWithSegments("/hubs"))
+                    ctx.Token = token;
+                return Task.CompletedTask;
+            }
+        };
     });
+
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<IDeviceStatusNotifier, SignalRDeviceStatusNotifier>();
 
 builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -108,13 +126,10 @@ builder.Services.AddScoped<MeasurementService>();
 builder.Services.AddScoped<DeviceService>();
 builder.Services.AddScoped<UserService>();
 
-// Simulador MQTT (ativado via appsettings)
-if (builder.Configuration.GetValue<bool>("Simulator:Enabled"))
-    builder.Services.AddHostedService<MqttSimulatorService>();
-
 // Assinante MQTT real (ativado via appsettings)
 if (builder.Configuration.GetValue<bool>("MqttSubscriber:Enabled"))
     builder.Services.AddHostedService<MqttSubscriberService>();
+
 
 builder.Services.AddCors(options =>
 {
@@ -122,7 +137,8 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins("http://localhost:4200")
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials();
     });
 });
 
@@ -154,6 +170,7 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<DeviceStatusHub>("/hubs/device-status");
 app.MapHealthChecks("/health");
 
 app.Run();

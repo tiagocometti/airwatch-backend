@@ -28,9 +28,9 @@ public class MeasurementService(IMeasurementRepository measurementRepository, ID
     }
 
     public async Task<PagedResultDto<MeasurementDto>> GetByDeviceExternalIdAsync(
-        string externalId, string? sensorType, int page, int pageSize)
+        string externalId, Guid userId, string? sensorType, int page, int pageSize)
     {
-        var device = await deviceRepository.GetByExternalIdAsync(externalId)
+        var device = await deviceRepository.GetByExternalIdAsync(externalId, userId)
             ?? throw new NotFoundException($"Dispositivo '{externalId}' não encontrado.");
 
         var (items, total) = string.IsNullOrEmpty(sensorType)
@@ -46,9 +46,9 @@ public class MeasurementService(IMeasurementRepository measurementRepository, ID
         };
     }
 
-    public async Task<PagedResultDto<MeasurementDto>> GetLatestAsync(int page, int pageSize)
+    public async Task<PagedResultDto<MeasurementDto>> GetLatestAsync(Guid userId, int page, int pageSize)
     {
-        var (items, total) = await measurementRepository.GetLatestAsync(page, pageSize);
+        var (items, total) = await measurementRepository.GetLatestAsync(userId, page, pageSize);
 
         return new PagedResultDto<MeasurementDto>
         {
@@ -59,9 +59,10 @@ public class MeasurementService(IMeasurementRepository measurementRepository, ID
         };
     }
 
-    public async Task<PagedResultDto<MeasurementDto>> GetByPeriodAsync(DateTime from, DateTime to, int page, int pageSize)
+    public async Task<PagedResultDto<MeasurementDto>> GetByPeriodAsync(
+        Guid userId, DateTime from, DateTime to, int page, int pageSize)
     {
-        var (items, total) = await measurementRepository.GetByPeriodAsync(from, to, page, pageSize);
+        var (items, total) = await measurementRepository.GetByPeriodAsync(userId, from, to, page, pageSize);
 
         return new PagedResultDto<MeasurementDto>
         {

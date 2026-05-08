@@ -1,6 +1,4 @@
 using System.Text;
-using System.Text.Json;
-using AirWatch.Application.DTOs.Measurements;
 using AirWatch.Application.Interfaces;
 using AirWatch.Application.Interfaces.Repositories;
 using AirWatch.Application.Services;
@@ -15,32 +13,31 @@ namespace AirWatch.Infrastructure.BackgroundServices;
 
 /// <summary>
 /// Conecta ao broker MQTT via TLS, assina os tópicos de telemetria e de status,
-/// persiste as medições recebidas e atualiza o estado online/offline dos dispositivos
-/// com base em mensagens LWT publicadas pelo próprio broker.
+/// persiste as medições recebidas e atualiza o estado online/offline dos dispositivos.
 /// </summary>
 public class MqttSubscriberService(
-    IServiceScopeFactory scopeFactory,
-    IDeviceStatusNotifier statusNotifier,
-    IConfiguration configuration,
+    IServiceScopeFactory    scopeFactory,
+    IDeviceStatusNotifier   statusNotifier,
+    IMeasurementNotifier    measurementNotifier,
+    IConfiguration          configuration,
     ILogger<MqttSubscriberService> logger) : BackgroundService
 {
-    private readonly string _host         = configuration["MqttSubscriber:Host"]!;
-    private readonly int    _port         = configuration.GetValue<int>("MqttSubscriber:Port", 8883);
-    private readonly string _user         = configuration["MqttSubscriber:Username"]!;
-    private readonly string _pass         = configuration["MqttSubscriber:Password"]!;
-    private readonly string _sensorsTopic = configuration.GetValue<string>("MqttSubscriber:Topic", "airwatch/sensors")!;
+    private readonly string _host = configuration["MqttSubscriber:Host"]!;
+    private readonly int    _port = configuration.GetValue<int>("MqttSubscriber:Port", 8883);
+    private readonly string _user = configuration["MqttSubscriber:Username"]!;
+    private readonly string _pass = configuration["MqttSubscriber:Password"]!;
 
-    // Tópico de status: airwatch/devices/{externalId}/status  (+ = wildcard de um nível)
+    // Tópico de telemetria com wildcard — airwatch/{deviceId}/telemetry
+    private readonly string _telemetryTopicFilter = configuration.GetValue<string>(
+        "MqttSubscriber:Topic", "airwatch/+/telemetry")!;
+
     private const string StatusTopicFilter = "airwatch/devices/+/status";
-
-    private static readonly JsonSerializerOptions JsonOptions =
-        new() { PropertyNameCaseInsensitive = true };
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         logger.LogInformation(
-            "Serviço MQTT iniciado. Broker: {Host}:{Port}, tópicos: [{Sensors}] e [{Status}]",
-            _host, _port, _sensorsTopic, StatusTopicFilter);
+            "Serviço MQTT iniciado. Broker: {Host}:{Port}, tópicos: [{Telemetry}] e [{Status}]",
+            _host, _port, _telemetryTopicFilter, StatusTopicFilter);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -78,20 +75,17 @@ public class MqttSubscriberService(
         await client.ConnectAsync(options, stoppingToken);
         logger.LogInformation("MQTT: conectado ao broker {Host}:{Port}.", _host, _port);
 
-        // Assinar tópico de telemetria
         await client.SubscribeAsync(
-            new MqttTopicFilterBuilder().WithTopic(_sensorsTopic).Build(),
+            new MqttTopicFilterBuilder().WithTopic(_telemetryTopicFilter).Build(),
             stoppingToken);
 
-        // Assinar tópico de status (LWT + birth messages do ESP)
-        // O broker entregará imediatamente a última mensagem retida de cada dispositivo.
         await client.SubscribeAsync(
             new MqttTopicFilterBuilder().WithTopic(StatusTopicFilter).Build(),
             stoppingToken);
 
         logger.LogInformation(
-            "MQTT: inscrito nos tópicos '{Sensors}' e '{Status}'.",
-            _sensorsTopic, StatusTopicFilter);
+            "MQTT: inscrito nos tópicos '{Telemetry}' e '{Status}'.",
+            _telemetryTopicFilter, StatusTopicFilter);
 
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -113,15 +107,13 @@ public class MqttSubscriberService(
     {
         var topic = args.ApplicationMessage.Topic;
 
-        if (IsStatusTopic(topic))
-            return HandleStatusMessageAsync(args);
-
-        return HandleSensorMessageAsync(args);
+        return IsStatusTopic(topic)
+            ? HandleStatusMessageAsync(args)
+            : HandleTelemetryMessageAsync(args);
     }
 
     // ─── Roteamento ────────────────────────────────────────────────────────────
 
-    /// <summary>Retorna true se o tópico segue o padrão airwatch/devices/{id}/status.</summary>
     private static bool IsStatusTopic(string topic)
     {
         var parts = topic.Split('/');
@@ -131,7 +123,6 @@ public class MqttSubscriberService(
             && parts[3] == "status";
     }
 
-    /// <summary>Extrai o externalId do tópico airwatch/devices/{externalId}/status.</summary>
     private static string ExtractExternalId(string topic) => topic.Split('/')[2];
 
     // ─── Handler de status (online / offline via LWT) ──────────────────────────
@@ -142,7 +133,7 @@ public class MqttSubscriberService(
         var payload    = Encoding.UTF8.GetString(args.ApplicationMessage.PayloadSegment).Trim().ToLower();
         var externalId = ExtractExternalId(topic);
 
-        logger.LogDebug("MQTT: mensagem de status recebida — dispositivo '{DeviceId}', estado '{Payload}'.",
+        logger.LogDebug("MQTT: status recebido — dispositivo '{DeviceId}', estado '{Payload}'.",
             externalId, payload);
 
         if (payload is not ("online" or "offline"))
@@ -193,115 +184,62 @@ public class MqttSubscriberService(
         }
     }
 
-    // ─── Handler de telemetria (medições dos sensores) ─────────────────────────
+    // ─── Handler de telemetria (CSV: deviceId,adc_mq3,adc_mq5,adc_mq135) ──────
 
-    private async Task HandleSensorMessageAsync(MqttApplicationMessageReceivedEventArgs args)
+    private async Task HandleTelemetryMessageAsync(MqttApplicationMessageReceivedEventArgs args)
     {
-        var raw = Encoding.UTF8.GetString(args.ApplicationMessage.PayloadSegment);
+        var raw = Encoding.UTF8.GetString(args.ApplicationMessage.PayloadSegment).Trim();
 
-        logger.LogDebug("MQTT: mensagem de telemetria recebida em '{Topic}': {Payload}",
+        logger.LogDebug("MQTT: telemetria recebida em '{Topic}': {Payload}",
             args.ApplicationMessage.Topic, raw);
 
-        MqttPayload? payload;
-        try
+        var parts = raw.Split(',');
+        if (parts.Length != 4)
         {
-            payload = JsonSerializer.Deserialize<MqttPayload>(raw, JsonOptions);
-        }
-        catch (JsonException ex)
-        {
-            logger.LogWarning(ex, "MQTT: payload JSON inválido, mensagem ignorada.");
+            logger.LogWarning("MQTT: payload CSV inválido (esperado 4 campos): '{Payload}'. Ignorando.", raw);
             return;
         }
 
-        if (payload is null || string.IsNullOrWhiteSpace(payload.DeviceId))
+        var externalId = parts[0].Trim();
+
+        if (!int.TryParse(parts[1], out var adcMq3)   ||
+            !int.TryParse(parts[2], out var adcMq5)   ||
+            !int.TryParse(parts[3], out var adcMq135))
         {
-            logger.LogWarning("MQTT: payload sem deviceId, mensagem ignorada. Payload: {Payload}", raw);
+            logger.LogWarning("MQTT: valores ADC inválidos no payload: '{Payload}'. Ignorando.", raw);
             return;
         }
 
         try
         {
-            using var scope            = scopeFactory.CreateScope();
-            var deviceRepository       = scope.ServiceProvider.GetRequiredService<IDeviceRepository>();
-            var measurementService     = scope.ServiceProvider.GetRequiredService<MeasurementService>();
+            using var scope       = scopeFactory.CreateScope();
+            var deviceRepo        = scope.ServiceProvider.GetRequiredService<IDeviceRepository>();
+            var calcSvc           = scope.ServiceProvider.GetRequiredService<MeasurementCalculationService>();
+            var measurementSvc    = scope.ServiceProvider.GetRequiredService<MeasurementService>();
 
-            var device = await deviceRepository.GetByExternalIdAsync(payload.DeviceId);
+            var device = await deviceRepo.GetByExternalIdAsync(externalId);
             if (device is null)
             {
                 logger.LogWarning(
                     "MQTT: dispositivo '{DeviceId}' não cadastrado, mensagem ignorada.",
-                    payload.DeviceId);
+                    externalId);
                 return;
             }
 
-            var timestamp = payload.Timestamp == default ? DateTime.UtcNow : payload.Timestamp;
+            var measurement = await calcSvc.CalculateAsync(device, adcMq3, adcMq5, adcMq135);
+            var dto         = await measurementSvc.RecordAsync(measurement, device.ExternalId);
 
-            // Salvar medições
-            List<CreateMeasurementDto> dtos;
-            if (payload.Sensors.Count > 0)
-            {
-                dtos = payload.Sensors.Select(kvp => new CreateMeasurementDto
-                {
-                    DeviceId   = device.Id,
-                    SensorType = kvp.Key,
-                    Calibrated = payload.Calibrated,
-                    Timestamp  = timestamp,
-                    AdcRaw     = kvp.Value.AdcRaw,
-                    VoltageV   = kvp.Value.VoltageV,
-                    RsOhm      = kvp.Value.RsOhm,
-                    RsR0Ratio  = kvp.Value.RsR0Ratio,
-                    Ppm        = kvp.Value.Ppm
-                }).ToList();
-            }
-            else
-            {
-                // Payload de calibração: sem leituras de sensor, grava registros zerados
-                dtos = new[] { "mq3", "mq5", "mq135" }.Select(sensorType => new CreateMeasurementDto
-                {
-                    DeviceId   = device.Id,
-                    SensorType = sensorType,
-                    Calibrated = false,
-                    Timestamp  = timestamp,
-                    AdcRaw     = 0,
-                    VoltageV   = 0,
-                    RsOhm      = 0,
-                    RsR0Ratio  = 0,
-                    Ppm        = 0
-                }).ToList();
-            }
-
-            await measurementService.RecordManyAsync(dtos);
-
-            // Atualizar apenas o timestamp da última leitura — IsOnline é controlado pelo tópico de status
-            await deviceRepository.UpdateLastSeenAsync(device.Id, timestamp);
+            await deviceRepo.UpdateLastSeenAsync(device.Id, measurement.Timestamp);
+            await measurementNotifier.NotifyNewMeasurementAsync(dto);
 
             logger.LogInformation(
-                "MQTT: {Count} medição(ões) salvas para dispositivo '{DeviceId}'.",
-                dtos.Count, payload.DeviceId);
+                "MQTT: medição salva para '{DeviceId}' — Álcool: {Alc:F1} ppm, GLP: {Lpg:F1} ppm, CO₂: {Co2:F1} ppm, NH₃: {Nh3:F1} ppm.",
+                externalId, dto.PpmAlcohol, dto.PpmLpg, dto.PpmCo2, dto.PpmNh3);
         }
         catch (Exception ex)
         {
             logger.LogError(ex,
-                "MQTT: erro ao salvar medições para dispositivo '{DeviceId}'.", payload.DeviceId);
+                "MQTT: erro ao processar telemetria do dispositivo '{DeviceId}'.", externalId);
         }
-    }
-
-    // ─── Tipos internos ────────────────────────────────────────────────────────
-
-    private sealed class MqttPayload
-    {
-        public string DeviceId { get; init; } = string.Empty;
-        public DateTime Timestamp { get; init; }
-        public bool Calibrated { get; init; }
-        public Dictionary<string, SensorReading> Sensors { get; init; } = new();
-    }
-
-    private sealed class SensorReading
-    {
-        public int AdcRaw { get; init; }
-        public double VoltageV { get; init; }
-        public double RsOhm { get; init; }
-        public double RsR0Ratio { get; init; }
-        public double Ppm { get; init; }
     }
 }

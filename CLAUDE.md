@@ -17,13 +17,14 @@ AirWatch.Api/             # Controllers, middleware, configuração de DI
 
 ## Background Services (rodam em paralelo)
 - `MqttSubscriberService` — único background service MQTT. Assina dois tópicos:
-  - `airwatch/sensors` — persiste medições e atualiza `LastSeen` do dispositivo
-  - `airwatch/devices/+/status` — processa birth messages (`online`) e LWT (`offline`) publicados pelo ESP; atualiza `IsOnline` no banco e emite evento SignalR
+  - `airwatch/+/telemetry` — recebe CSV `deviceId,adc_mq3,adc_mq5,adc_mq135`, calcula PPMs e persiste
+  - `airwatch/devices/+/status` — processa birth messages (`online`) e LWT (`offline`) publicados pelo ESP
 
 ## Banco de dados — tabelas principais
 - `users` — autenticação
-- `devices` — `IsOnline`, `LastSeen`, `ExternalId`, `IsActive`
-- `measurements` — `SensorType`, `AdcRaw`, `VoltageV`, `RsOhm`, `RsR0Ratio`, `Ppm`, `Calibrated`, `Timestamp`
+- `devices` — `IsOnline`, `LastSeen`, `ExternalId`, `IsActive` + `RlMq3/5/135`, `R0Mq3/5/135`
+- `measurements` — uma linha por ciclo: `Mq3Adc`, `Mq5Adc`, `Mq135Adc`, `PpmAlcohol`, `PpmLpg`, `PpmCo2`, `PpmNh3`, `Timestamp`
+- `sensor_coefficients` — coeficientes de curva por sensor+gás: `SensorType`, `GasTarget`, `CoefA`, `CoefB`, `RatioMin`, `RatioMax`
 
 ## MQTT — broker HiveMQ Cloud
 ```
@@ -31,21 +32,30 @@ Host:  0160eb21063349f3a226443abf16e94e.s1.eu.hivemq.cloud
 Porta: 8883 (TLS)
 User:  airwatch
 ```
-Estrutura de tópicos atual:
-- `airwatch/sensors` — telemetria (payload JSON com leituras dos sensores)
+Estrutura de tópicos:
+- `airwatch/{externalId}/telemetry` — telemetria (CSV publicado pelo ESP; backend assina `airwatch/+/telemetry`)
 - `airwatch/devices/{externalId}/status` — presença do dispositivo (`online` / `offline`, retain=true)
 
 Tópicos planejados (ainda não implementados):
-- `airwatch/devices/{externalId}/commands` — comandos do backend para o ESP (calibração, etc.)
+- `airwatch/devices/{externalId}/commands` — comandos do backend para o ESP
 - `airwatch/devices/{externalId}/config` — configurações remotas
 
-## Sensores e cálculos
-O Arduino envia apenas o **ADC raw** de cada sensor. Tensão, Rs, Rs/R0 e PPM devem ser calculados no backend — **essa lógica ainda não foi implementada**.
-- MQ3 — álcool etílico/etanol (25–5.000 ppm)
-- MQ5 — GLP/gás natural (300–10.000 ppm)
-- MQ135 — qualidade geral do ar: CO₂, NH₃, NOₓ, benzeno, fumaça (10–1.000 ppm para CO₂)
+## Cadeia de cálculo (ADC → PPM)
+O backend é o único responsável por todos os cálculos:
+1. `ADC → VRL`:  `vrl = adc * (5.0 / 1023)`
+2. `VRL → Rs`:   `rs = ((5.0 / vrl) - 1.0) * rl`  (RL por sensor em `devices`)
+3. `Rs → ratio`: `ratio = rs / r0`                  (R0 temporário em `devices`)
+4. `ratio → PPM`: `ppm = coefA * ratio^coefB`        (coeficientes em `sensor_coefficients`)
 
-O R0 de cada sensor (resistência de referência em ar limpo) deve ser calibrado fisicamente, persistido no banco e recalibrável remotamente via MQTT — **também não implementado ainda**.
+- MQ3 → Álcool (coef: a=0.3934, b=-1.5040)
+- MQ5 → GLP (coef: a=217.4972, b=-2.4221)
+- MQ135 → CO₂ (coef: a=110.47, b=-2.862) e NH₃ (coef: a=102.2, b=-2.473)
+
+R0 default: MQ3=25000Ω, MQ5=105000Ω, MQ135=76630Ω (temporário — será revisado na calibração)
+
+## SignalR — eventos
+- `DeviceStatusChanged` — status online/offline de dispositivo
+- `NewMeasurement` — nova medição com os quatro PPMs (emitido após cada telemetria processada)
 
 ## Convenções
 - Seguir Clean Architecture: regras de negócio ficam em Domain/Application, nunca em Infrastructure ou Api
@@ -54,12 +64,12 @@ O R0 de cada sensor (resistência de referência em ar limpo) deve ser calibrado
 - SignalR emite eventos nomeados — manter consistência com os nomes que o frontend consome
 
 ## Dev sem hardware
-- Para simular leituras de sensores: publicar JSON no tópico `airwatch/sensors` via Web Client do HiveMQ
-- Para simular status: publicar `online` ou `offline` no tópico `airwatch/devices/{externalId}/status` com retain=true via Web Client do HiveMQ
+- Para simular telemetria: publicar CSV `arduino-01,293,89,118` no tópico `airwatch/arduino-01/telemetry` via Web Client do HiveMQ
+- Para simular status: publicar `online` ou `offline` no tópico `airwatch/devices/arduino-01/status` com retain=true via Web Client do HiveMQ
 - O MqttSimulatorService foi removido intencionalmente — não recriar
 
 ## Funcionalidades planejadas (ainda não implementadas)
 - Alertas ao usuário quando concentração perigosa detectada
 - Comandos remotos ao Arduino via MQTT
-- Calibração remota de R0
+- Calibração e gerenciamento de R0 (valores atuais são temporários)
 - Ativação/desativação de dispositivos pelo frontend

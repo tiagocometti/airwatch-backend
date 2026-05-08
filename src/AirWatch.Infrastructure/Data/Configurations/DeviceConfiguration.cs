@@ -26,18 +26,18 @@ public class DeviceConfiguration : IEntityTypeConfiguration<Device>
         builder.Property(d => d.Location)
             .HasMaxLength(200);
 
-        builder.Property(d => d.IsActive)
-            .IsRequired();
-
-        builder.Property(d => d.IsOnline)
-            .IsRequired();
-
+        builder.Property(d => d.IsActive).IsRequired();
+        builder.Property(d => d.IsOnline).IsRequired();
         builder.Property(d => d.LastSeen);
-
-        builder.Property(d => d.RegisteredAt)
-            .IsRequired();
-
+        builder.Property(d => d.RegisteredAt).IsRequired();
         builder.Property(d => d.UserId).IsRequired();
+
+        builder.Property(d => d.RlMq3).IsRequired().HasDefaultValue(10000.0);
+        builder.Property(d => d.RlMq5).IsRequired().HasDefaultValue(10000.0);
+        builder.Property(d => d.RlMq135).IsRequired().HasDefaultValue(10000.0);
+        builder.Property(d => d.R0Mq3).IsRequired().HasDefaultValue(25000.0);
+        builder.Property(d => d.R0Mq5).IsRequired().HasDefaultValue(105000.0);
+        builder.Property(d => d.R0Mq135).IsRequired().HasDefaultValue(76630.0);
 
         builder.HasIndex(d => d.UserId);
 

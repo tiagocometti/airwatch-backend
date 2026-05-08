@@ -36,7 +36,6 @@ public class MeasurementsController(MeasurementService measurementService) : Con
     /// Retorna medições de um dispositivo específico do usuário autenticado.
     /// </summary>
     /// <param name="deviceId">Identificador externo do dispositivo.</param>
-    /// <param name="sensorType">Filtro opcional por tipo de sensor: mq3, mq5 ou mq135.</param>
     /// <param name="page">Número da página (começa em 1). Padrão: 1.</param>
     /// <param name="pageSize">Itens por página. Padrão: 20.</param>
     /// <response code="200">Página retornada com sucesso.</response>
@@ -46,11 +45,10 @@ public class MeasurementsController(MeasurementService measurementService) : Con
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetByDevice(
         string deviceId,
-        [FromQuery] string? sensorType = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
-        var result = await measurementService.GetByDeviceExternalIdAsync(deviceId, UserId, sensorType, page, pageSize);
+        var result = await measurementService.GetByDeviceExternalIdAsync(deviceId, UserId, page, pageSize);
         return Ok(result);
     }
 

@@ -7,9 +7,9 @@ namespace AirWatch.Infrastructure.Repositories;
 
 public class MeasurementRepository(AppDbContext context) : IMeasurementRepository
 {
-    public async Task AddManyAsync(IEnumerable<Measurement> measurements)
+    public async Task AddAsync(Measurement measurement)
     {
-        await context.Measurements.AddRangeAsync(measurements);
+        await context.Measurements.AddAsync(measurement);
         await context.SaveChangesAsync();
     }
 
@@ -17,24 +17,6 @@ public class MeasurementRepository(AppDbContext context) : IMeasurementRepositor
     {
         var query = context.Measurements
             .Where(m => m.DeviceId == deviceId)
-            .OrderByDescending(m => m.Timestamp);
-
-        var total = await query.CountAsync();
-        var items = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Include(m => m.Device)
-            .AsNoTracking()
-            .ToListAsync();
-
-        return (items, total);
-    }
-
-    public async Task<(IEnumerable<Measurement> Items, int TotalCount)> GetByDeviceIdAndSensorTypeAsync(
-        Guid deviceId, string sensorType, int page, int pageSize)
-    {
-        var query = context.Measurements
-            .Where(m => m.DeviceId == deviceId && m.SensorType == sensorType)
             .OrderByDescending(m => m.Timestamp);
 
         var total = await query.CountAsync();

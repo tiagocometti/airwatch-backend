@@ -8,34 +8,19 @@ namespace AirWatch.Application.Services;
 
 public class MeasurementService(IMeasurementRepository measurementRepository, IDeviceRepository deviceRepository)
 {
-    public async Task RecordManyAsync(IEnumerable<CreateMeasurementDto> dtos)
+    public async Task<MeasurementDto> RecordAsync(Measurement measurement, string deviceExternalId)
     {
-        var measurements = dtos.Select(dto => new Measurement
-        {
-            Id         = Guid.NewGuid(),
-            DeviceId   = dto.DeviceId,
-            SensorType = dto.SensorType,
-            Calibrated = dto.Calibrated,
-            AdcRaw     = dto.AdcRaw,
-            VoltageV   = dto.VoltageV,
-            RsOhm      = dto.RsOhm,
-            RsR0Ratio  = dto.RsR0Ratio,
-            Ppm        = dto.Ppm,
-            Timestamp  = dto.Timestamp
-        });
-
-        await measurementRepository.AddManyAsync(measurements);
+        await measurementRepository.AddAsync(measurement);
+        return ToDto(measurement, deviceExternalId);
     }
 
     public async Task<PagedResultDto<MeasurementDto>> GetByDeviceExternalIdAsync(
-        string externalId, Guid userId, string? sensorType, int page, int pageSize)
+        string externalId, Guid userId, int page, int pageSize)
     {
         var device = await deviceRepository.GetByExternalIdAsync(externalId, userId)
             ?? throw new NotFoundException($"Dispositivo '{externalId}' não encontrado.");
 
-        var (items, total) = string.IsNullOrEmpty(sensorType)
-            ? await measurementRepository.GetByDeviceIdAsync(device.Id, page, pageSize)
-            : await measurementRepository.GetByDeviceIdAndSensorTypeAsync(device.Id, sensorType, page, pageSize);
+        var (items, total) = await measurementRepository.GetByDeviceIdAsync(device.Id, page, pageSize);
 
         return new PagedResultDto<MeasurementDto>
         {
@@ -74,5 +59,7 @@ public class MeasurementService(IMeasurementRepository measurementRepository, ID
     }
 
     private static MeasurementDto ToDto(Measurement m, string deviceExternalId) =>
-        new(m.Id, deviceExternalId, m.SensorType, m.Calibrated, m.AdcRaw, m.VoltageV, m.RsOhm, m.RsR0Ratio, m.Ppm, m.Timestamp);
+        new(m.Id, deviceExternalId, m.Timestamp,
+            m.Mq3Adc, m.Mq5Adc, m.Mq135Adc,
+            m.PpmAlcohol, m.PpmLpg, m.PpmCo2, m.PpmNh3);
 }

@@ -118,11 +118,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<IDeviceStatusNotifier, SignalRDeviceStatusNotifier>();
+builder.Services.AddSingleton<IMeasurementNotifier, SignalRMeasurementNotifier>();
 
 builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<MeasurementService>();
+builder.Services.AddScoped<MeasurementCalculationService>();
 builder.Services.AddScoped<DeviceService>();
 builder.Services.AddScoped<UserService>();
 

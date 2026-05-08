@@ -12,16 +12,16 @@ public class MeasurementConfiguration : IEntityTypeConfiguration<Measurement>
 
         builder.HasKey(m => m.Id);
 
-        builder.Property(m => m.SensorType).HasMaxLength(10).IsRequired();
-        builder.Property(m => m.Calibrated).IsRequired();
-        builder.Property(m => m.AdcRaw).IsRequired();
-        builder.Property(m => m.VoltageV).IsRequired();
-        builder.Property(m => m.RsOhm).IsRequired();
-        builder.Property(m => m.RsR0Ratio).IsRequired();
-        builder.Property(m => m.Ppm).IsRequired();
         builder.Property(m => m.Timestamp).IsRequired();
+        builder.Property(m => m.Mq3Adc).IsRequired();
+        builder.Property(m => m.Mq5Adc).IsRequired();
+        builder.Property(m => m.Mq135Adc).IsRequired();
+        builder.Property(m => m.PpmAlcohol).IsRequired();
+        builder.Property(m => m.PpmLpg).IsRequired();
+        builder.Property(m => m.PpmCo2).IsRequired();
+        builder.Property(m => m.PpmNh3).IsRequired();
 
+        builder.HasIndex(m => m.DeviceId);
         builder.HasIndex(m => m.Timestamp);
-        builder.HasIndex(m => m.SensorType);
     }
 }

@@ -3,13 +3,18 @@ using AirWatch.Domain.Entities;
 
 namespace AirWatch.Application.Services;
 
-public class MeasurementCalculationService(ISensorCoefficientRepository coeffRepo)
+public class MeasurementCalculationService(
+    ISensorCoefficientRepository coeffRepo,
+    ICalibrationRepository calibrationRepo)
 {
     private const double Vc     = 5.0;
     private const int    AdcMax = 1023;
 
-    public async Task<Measurement> CalculateAsync(Device device, int adcMq3, int adcMq5, int adcMq135)
+    public async Task<Measurement?> CalculateAsync(Device device, int adcMq3, int adcMq5, int adcMq135)
     {
+        var calibration = await calibrationRepo.GetActiveByDeviceIdAsync(device.Id);
+        if (calibration is null) return null;
+
         var allCoefs = (await coeffRepo.GetAllAsync()).ToList();
 
         var coeffAlcohol = allCoefs.FirstOrDefault(c => c.SensorType == "MQ3"   && c.GasTarget == "Alcohol");
@@ -25,10 +30,10 @@ public class MeasurementCalculationService(ISensorCoefficientRepository coeffRep
             Mq3Adc     = adcMq3,
             Mq5Adc     = adcMq5,
             Mq135Adc   = adcMq135,
-            PpmAlcohol = ComputePpm(adcMq3,   device.RlMq3,   device.R0Mq3,   coeffAlcohol),
-            PpmLpg     = ComputePpm(adcMq5,   device.RlMq5,   device.R0Mq5,   coeffLpg),
-            PpmCo2     = ComputePpm(adcMq135,  device.RlMq135, device.R0Mq135, coeffCo2),
-            PpmNh3     = ComputePpm(adcMq135,  device.RlMq135, device.R0Mq135, coeffNh3)
+            PpmAlcohol = ComputePpm(adcMq3,  device.RlMq3,   calibration.R0Mq3!.Value,   coeffAlcohol),
+            PpmLpg     = ComputePpm(adcMq5,  device.RlMq5,   calibration.R0Mq5!.Value,   coeffLpg),
+            PpmCo2     = ComputePpm(adcMq135, device.RlMq135, calibration.R0Mq135!.Value, coeffCo2),
+            PpmNh3     = ComputePpm(adcMq135, device.RlMq135, calibration.R0Mq135!.Value, coeffNh3)
         };
     }
 

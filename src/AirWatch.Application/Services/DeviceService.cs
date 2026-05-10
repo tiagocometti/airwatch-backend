@@ -41,6 +41,25 @@ public class DeviceService(IDeviceRepository deviceRepository)
         return device is null ? null : ToDto(device);
     }
 
+    public async Task<DeviceDto?> GetByIdAsync(Guid id, Guid userId)
+    {
+        var device = await deviceRepository.GetByIdAsync(id);
+        if (device is null || device.UserId != userId) return null;
+        return ToDto(device);
+    }
+
+    public async Task<DeviceDto> UpdateAsync(Guid id, Guid userId, UpdateDeviceDto dto)
+    {
+        var device = await deviceRepository.GetByIdAsync(id);
+        if (device is null || device.UserId != userId)
+            throw new NotFoundException($"Dispositivo '{id}' não encontrado.");
+
+        device.Name     = dto.Name;
+        device.Location = dto.Location;
+        await deviceRepository.UpdateAsync(device);
+        return ToDto(device);
+    }
+
     private static DeviceDto ToDto(Device d) =>
         new(d.Id, d.ExternalId, d.Name, d.Location, d.IsActive, d.IsOnline, d.LastSeen, d.RegisteredAt);
 }

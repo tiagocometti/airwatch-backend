@@ -3,6 +3,7 @@ using AirWatch.Application.Interfaces.Repositories;
 using AirWatch.Infrastructure.Data;
 using AirWatch.Infrastructure.Repositories;
 using AirWatch.Infrastructure.Security;
+using AirWatch.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,9 +21,11 @@ public static class DependencyInjection
         services.AddScoped<IDeviceRepository, DeviceRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ISensorCoefficientRepository, SensorCoefficientRepository>();
+        services.AddScoped<ICalibrationRepository, CalibrationRepository>();
 
         services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
+        services.AddSingleton<IMqttPublisher, MqttPublisherService>();
 
         return services;
     }

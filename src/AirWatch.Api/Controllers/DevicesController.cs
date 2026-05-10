@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using AirWatch.Application.DTOs.Devices;
 using AirWatch.Application.Services;
+using AirWatch.Domain.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -65,5 +66,21 @@ public class DevicesController(DeviceService deviceService) : ControllerBase
             return NotFound();
 
         return Ok(device);
+    }
+
+    /// <summary>
+    /// Atualiza nome e localização de um dispositivo.
+    /// </summary>
+    /// <param name="id">UUID do dispositivo.</param>
+    /// <param name="dto">Novos dados.</param>
+    /// <response code="200">Dispositivo atualizado.</response>
+    /// <response code="404">Dispositivo não encontrado ou não pertence ao usuário.</response>
+    [HttpPatch("{id:guid}")]
+    [ProducesResponseType(typeof(DeviceDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateDeviceDto dto)
+    {
+        var result = await deviceService.UpdateAsync(id, UserId, dto);
+        return Ok(result);
     }
 }

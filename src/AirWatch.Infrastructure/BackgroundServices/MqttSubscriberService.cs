@@ -19,6 +19,7 @@ public class MqttSubscriberService(
     IServiceScopeFactory    scopeFactory,
     IDeviceStatusNotifier   statusNotifier,
     IMeasurementNotifier    measurementNotifier,
+    ICalibrationSampleHandler calibrationHandler,
     IConfiguration          configuration,
     ILogger<MqttSubscriberService> logger) : BackgroundService
 {
@@ -31,7 +32,8 @@ public class MqttSubscriberService(
     private readonly string _telemetryTopicFilter = configuration.GetValue<string>(
         "MqttSubscriber:Topic", "airwatch/+/telemetry")!;
 
-    private const string StatusTopicFilter = "airwatch/devices/+/status";
+    private const string StatusTopicFilter      = "airwatch/devices/+/status";
+    private const string CalibrationTopicFilter = "airwatch/+/calibration";
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -83,9 +85,13 @@ public class MqttSubscriberService(
             new MqttTopicFilterBuilder().WithTopic(StatusTopicFilter).Build(),
             stoppingToken);
 
+        await client.SubscribeAsync(
+            new MqttTopicFilterBuilder().WithTopic(CalibrationTopicFilter).Build(),
+            stoppingToken);
+
         logger.LogInformation(
-            "MQTT: inscrito nos tópicos '{Telemetry}' e '{Status}'.",
-            _telemetryTopicFilter, StatusTopicFilter);
+            "MQTT: inscrito nos tópicos '{Telemetry}', '{Calibration}' e '{Status}'.",
+            _telemetryTopicFilter, CalibrationTopicFilter, StatusTopicFilter);
 
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -107,9 +113,9 @@ public class MqttSubscriberService(
     {
         var topic = args.ApplicationMessage.Topic;
 
-        return IsStatusTopic(topic)
-            ? HandleStatusMessageAsync(args)
-            : HandleTelemetryMessageAsync(args);
+        if (IsStatusTopic(topic))      return HandleStatusMessageAsync(args);
+        if (IsCalibrationTopic(topic)) return HandleCalibrationMessageAsync(args);
+        return HandleTelemetryMessageAsync(args);
     }
 
     // ─── Roteamento ────────────────────────────────────────────────────────────
@@ -123,7 +129,17 @@ public class MqttSubscriberService(
             && parts[3] == "status";
     }
 
-    private static string ExtractExternalId(string topic) => topic.Split('/')[2];
+    private static bool IsCalibrationTopic(string topic)
+    {
+        var parts = topic.Split('/');
+        return parts.Length == 3
+            && parts[0] == "airwatch"
+            && parts[2] == "calibration";
+    }
+
+    private static string ExtractExternalId(string topic) => topic.Split('/')[1];
+
+    private static string ExtractExternalIdFromStatus(string topic) => topic.Split('/')[2];
 
     // ─── Handler de status (online / offline via LWT) ──────────────────────────
 
@@ -131,7 +147,7 @@ public class MqttSubscriberService(
     {
         var topic      = args.ApplicationMessage.Topic;
         var payload    = Encoding.UTF8.GetString(args.ApplicationMessage.PayloadSegment).Trim().ToLower();
-        var externalId = ExtractExternalId(topic);
+        var externalId = ExtractExternalIdFromStatus(topic);
 
         logger.LogDebug("MQTT: status recebido — dispositivo '{DeviceId}', estado '{Payload}'.",
             externalId, payload);
@@ -184,6 +200,26 @@ public class MqttSubscriberService(
         }
     }
 
+    // ─── Handler de calibração (mesmo CSV, durante modo de calibração) ─────────
+
+    private async Task HandleCalibrationMessageAsync(MqttApplicationMessageReceivedEventArgs args)
+    {
+        var topic   = args.ApplicationMessage.Topic;
+        var raw     = Encoding.UTF8.GetString(args.ApplicationMessage.PayloadSegment).Trim();
+        var deviceId = ExtractExternalId(topic);
+
+        logger.LogDebug("MQTT: amostra de calibração para '{DeviceId}': {Payload}", deviceId, raw);
+
+        try
+        {
+            await calibrationHandler.ProcessSampleAsync(deviceId, raw);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "MQTT: erro ao processar amostra de calibração para '{DeviceId}'.", deviceId);
+        }
+    }
+
     // ─── Handler de telemetria (CSV: deviceId,adc_mq3,adc_mq5,adc_mq135) ──────
 
     private async Task HandleTelemetryMessageAsync(MqttApplicationMessageReceivedEventArgs args)
@@ -227,7 +263,13 @@ public class MqttSubscriberService(
             }
 
             var measurement = await calcSvc.CalculateAsync(device, adcMq3, adcMq5, adcMq135);
-            var dto         = await measurementSvc.RecordAsync(measurement, device.ExternalId);
+            if (measurement is null)
+            {
+                logger.LogDebug("MQTT: '{DeviceId}' sem calibração ativa — medição descartada.", externalId);
+                return;
+            }
+
+            var dto = await measurementSvc.RecordAsync(measurement, device.ExternalId);
 
             await deviceRepo.UpdateLastSeenAsync(device.Id, measurement.Timestamp);
             await measurementNotifier.NotifyNewMeasurementAsync(dto);

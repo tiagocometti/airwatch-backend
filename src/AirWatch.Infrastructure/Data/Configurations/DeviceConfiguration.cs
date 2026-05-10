@@ -35,9 +35,6 @@ public class DeviceConfiguration : IEntityTypeConfiguration<Device>
         builder.Property(d => d.RlMq3).IsRequired().HasDefaultValue(10000.0);
         builder.Property(d => d.RlMq5).IsRequired().HasDefaultValue(10000.0);
         builder.Property(d => d.RlMq135).IsRequired().HasDefaultValue(10000.0);
-        builder.Property(d => d.R0Mq3).IsRequired().HasDefaultValue(25000.0);
-        builder.Property(d => d.R0Mq5).IsRequired().HasDefaultValue(105000.0);
-        builder.Property(d => d.R0Mq135).IsRequired().HasDefaultValue(76630.0);
 
         builder.HasIndex(d => d.UserId);
 
@@ -49,6 +46,11 @@ public class DeviceConfiguration : IEntityTypeConfiguration<Device>
         builder.HasMany(d => d.Measurements)
             .WithOne(m => m.Device)
             .HasForeignKey(m => m.DeviceId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(d => d.Calibrations)
+            .WithOne(c => c.Device)
+            .HasForeignKey(c => c.DeviceId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

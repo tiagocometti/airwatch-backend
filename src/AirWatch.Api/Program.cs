@@ -119,6 +119,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<IDeviceStatusNotifier, SignalRDeviceStatusNotifier>();
 builder.Services.AddSingleton<IMeasurementNotifier, SignalRMeasurementNotifier>();
+builder.Services.AddSingleton<ICalibrationNotifier, SignalRCalibrationNotifier>();
 
 builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -127,6 +128,13 @@ builder.Services.AddScoped<MeasurementService>();
 builder.Services.AddScoped<MeasurementCalculationService>();
 builder.Services.AddScoped<DeviceService>();
 builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<CalibrationService>();
+
+// CalibrationBackgroundService registrado como singleton para ser injetável via múltiplas interfaces
+builder.Services.AddSingleton<CalibrationBackgroundService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<CalibrationBackgroundService>());
+builder.Services.AddSingleton<ICalibrationManager>(sp => sp.GetRequiredService<CalibrationBackgroundService>());
+builder.Services.AddSingleton<ICalibrationSampleHandler>(sp => sp.GetRequiredService<CalibrationBackgroundService>());
 
 // Assinante MQTT real (ativado via appsettings)
 if (builder.Configuration.GetValue<bool>("MqttSubscriber:Enabled"))

@@ -31,7 +31,7 @@ AirWatch.Api/             # Controllers, middleware, configuração de DI
 - `users` — autenticação
 - `devices` — `IsOnline`, `LastSeen`, `ExternalId`, `IsActive`, `RlMq3/5/135` (RL de carga do hardware; R0 **não** fica aqui)
 - `measurements` — uma linha por ciclo: `Mq3Adc`, `Mq5Adc`, `Mq135Adc`, `PpmAlcohol`, `PpmLpg`, `PpmCo2`, `PpmNh3`, `Timestamp`
-- `sensor_coefficients` — coeficientes de curva por sensor+gás: `SensorType`, `GasTarget`, `CoefA`, `CoefB`, `RatioMin`, `RatioMax`
+- `sensor_coefficients` — coeficientes de curva por sensor+gás: `SensorType`, `GasTarget`, `CoefA`, `CoefB`, `SafeMax`, `GoodMax`, `AlertMax`
 - `calibrations` — histórico de calibrações:
   - `Id`, `DeviceId`, `StartedAt`, `CompletedAt`, `Status` (`InProgress`/`Completed`/`Cancelled`/`Failed`)
   - `Location`, `SampleCount`, `DuracaoSegundos`
@@ -97,6 +97,9 @@ services.AddSingleton<ICalibrationSampleHandler>(sp => sp.GetRequiredService<Cal
 - Calibração: publicar mesmo CSV em `airwatch/arduino-01/calibration` com sessão ativa em `_sessions`
 - Status: publicar `online`/`offline` em `airwatch/devices/arduino-01/status` com retain=true
 - O MqttSimulatorService foi removido intencionalmente — não recriar
+
+## API — endpoint de thresholds (público, sem autenticação)
+- `GET /api/sensor-coefficients/thresholds` — retorna `[{ gasTarget, safeMax, goodMax, alertMax }]` para os 4 gases
 
 ## Funcionalidades planejadas (ainda não implementadas)
 - Alertas ao usuário quando concentração perigosa detectada

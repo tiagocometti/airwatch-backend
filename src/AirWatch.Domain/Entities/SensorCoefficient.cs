@@ -7,6 +7,7 @@ public class SensorCoefficient
     public string GasTarget  { get; set; } = string.Empty; // "Alcohol", "LPG", "CO2", "NH3"
     public double CoefA      { get; set; }
     public double CoefB      { get; set; }
-    public double RatioMin   { get; set; }
-    public double RatioMax   { get; set; }
+    public double SafeMax    { get; set; }
+    public double GoodMax    { get; set; }
+    public double AlertMax   { get; set; }
 }

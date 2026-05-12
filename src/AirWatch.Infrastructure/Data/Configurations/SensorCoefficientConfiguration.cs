@@ -16,8 +16,9 @@ public class SensorCoefficientConfiguration : IEntityTypeConfiguration<SensorCoe
         builder.Property(c => c.GasTarget).HasMaxLength(20).IsRequired();
         builder.Property(c => c.CoefA).IsRequired();
         builder.Property(c => c.CoefB).IsRequired();
-        builder.Property(c => c.RatioMin).IsRequired();
-        builder.Property(c => c.RatioMax).IsRequired();
+        builder.Property(c => c.SafeMax).IsRequired();
+        builder.Property(c => c.GoodMax).IsRequired();
+        builder.Property(c => c.AlertMax).IsRequired();
 
         builder.HasIndex(c => new { c.SensorType, c.GasTarget }).IsUnique();
     }

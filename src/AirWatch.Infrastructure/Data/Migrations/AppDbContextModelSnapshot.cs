@@ -140,6 +140,9 @@ namespace AirWatch.Infrastructure.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<double>("AlertMax")
+                        .HasColumnType("double precision");
+
                     b.Property<double>("CoefA")
                         .HasColumnType("double precision");
 
@@ -151,10 +154,10 @@ namespace AirWatch.Infrastructure.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
-                    b.Property<double>("RatioMax")
+                    b.Property<double>("GoodMax")
                         .HasColumnType("double precision");
 
-                    b.Property<double>("RatioMin")
+                    b.Property<double>("SafeMax")
                         .HasColumnType("double precision");
 
                     b.Property<string>("SensorType")

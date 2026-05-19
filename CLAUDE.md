@@ -101,6 +101,14 @@ services.AddSingleton<ICalibrationSampleHandler>(sp => sp.GetRequiredService<Cal
 ## API — endpoint de thresholds (público, sem autenticação)
 - `GET /api/sensor-coefficients/thresholds` — retorna `[{ gasTarget, safeMax, goodMax, alertMax }]` para os 4 gases
 
+## API — endpoint de histórico de medições
+- `GET /api/measurements/history?deviceId=&from=&to=&granularity=` — série temporal de medições
+  - `granularity`: `raw` (medições individuais) | `1min` | `5min` | `1hour` | `6hour` (média por bucket)
+  - Retorna `MeasurementHistoryDto[]` — `{ timestamp, ppmCo2, ppmNh3, ppmLpg, ppmAlcohol }`
+  - Granularidades agregadas usam SQL raw com `to_timestamp(floor(extract(epoch from "Timestamp") / interval) * interval)` para bucketing eficiente no PostgreSQL (sem EF LINQ)
+  - Timestamps sempre retornados como UTC (`DateTimeKind.Utc`)
+  - Requer autenticação; valida que o device pertence ao usuário via `UserId`
+
 ## Funcionalidades planejadas (ainda não implementadas)
 - Alertas ao usuário quando concentração perigosa detectada
 - Ativação/desativação de dispositivos pelo frontend

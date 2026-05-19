@@ -73,4 +73,28 @@ public class MeasurementsController(MeasurementService measurementService) : Con
         var result = await measurementService.GetByPeriodAsync(UserId, from, to, page, pageSize);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Retorna histórico de medições de um dispositivo com suporte a agregação temporal.
+    /// </summary>
+    /// <param name="deviceId">ID do dispositivo (GUID).</param>
+    /// <param name="from">Início do período (ISO 8601 UTC).</param>
+    /// <param name="to">Fim do período (ISO 8601 UTC).</param>
+    /// <param name="granularity">Granularidade: raw | 1min | 5min | 1hour | 6hour</param>
+    /// <response code="200">Série temporal retornada com sucesso.</response>
+    /// <response code="400">Parâmetros inválidos.</response>
+    /// <response code="404">Dispositivo não encontrado ou não pertence ao usuário.</response>
+    [HttpGet]
+    [ProducesResponseType(typeof(IEnumerable<MeasurementHistoryDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetHistory(
+        [FromQuery] Guid deviceId,
+        [FromQuery] DateTime from,
+        [FromQuery] DateTime to,
+        [FromQuery] string granularity)
+    {
+        var result = await measurementService.GetHistoryAsync(deviceId, UserId, from, to, granularity);
+        return Ok(result);
+    }
 }

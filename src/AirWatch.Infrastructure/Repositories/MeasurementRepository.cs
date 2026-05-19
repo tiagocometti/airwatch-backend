@@ -1,7 +1,9 @@
+using AirWatch.Application.DTOs.Measurements;
 using AirWatch.Application.Interfaces.Repositories;
 using AirWatch.Domain.Entities;
 using AirWatch.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using NpgsqlTypes;
 
 namespace AirWatch.Infrastructure.Repositories;
 
@@ -73,5 +75,75 @@ public class MeasurementRepository(AppDbContext context) : IMeasurementRepositor
             .GroupBy(m => m.DeviceId)
             .Select(g => new { DeviceId = g.Key, Latest = g.Max(m => m.Timestamp) })
             .ToDictionaryAsync(x => x.DeviceId, x => x.Latest);
+    }
+
+    public async Task<IEnumerable<MeasurementHistoryDto>> GetHistoryAsync(
+        Guid deviceId, DateTime from, DateTime to, string granularity)
+    {
+        if (granularity == "raw")
+        {
+            var items = await context.Measurements
+                .Where(m => m.DeviceId == deviceId && m.Timestamp >= from && m.Timestamp <= to)
+                .OrderBy(m => m.Timestamp)
+                .AsNoTracking()
+                .ToListAsync();
+
+            return items.Select(m => new MeasurementHistoryDto(
+                DateTime.SpecifyKind(m.Timestamp, DateTimeKind.Utc),
+                m.PpmCo2, m.PpmNh3, m.PpmLpg, m.PpmAlcohol));
+        }
+
+        var intervalSeconds = granularity switch
+        {
+            "1min"  => 60,
+            "5min"  => 300,
+            "1hour" => 3600,
+            "6hour" => 21600,
+            _       => throw new ArgumentException($"Granularidade inválida: {granularity}", nameof(granularity))
+        };
+
+        const string sql = """
+            SELECT
+                to_timestamp(floor(extract(epoch from "Timestamp") / $1) * $1) AS bucket,
+                AVG("PpmCo2")     AS co2,
+                AVG("PpmNh3")     AS nh3,
+                AVG("PpmLpg")     AS lpg,
+                AVG("PpmAlcohol") AS alcohol
+            FROM measurements
+            WHERE "DeviceId" = $2
+              AND "Timestamp" >= $3
+              AND "Timestamp" <= $4
+            GROUP BY 1
+            ORDER BY 1
+            """;
+
+        var results = new List<MeasurementHistoryDto>();
+        await context.Database.OpenConnectionAsync();
+        try
+        {
+            await using var cmd = (Npgsql.NpgsqlCommand)context.Database.GetDbConnection().CreateCommand();
+            cmd.CommandText = sql;
+            cmd.Parameters.Add(new Npgsql.NpgsqlParameter { NpgsqlDbType = NpgsqlDbType.Integer, Value = intervalSeconds });
+            cmd.Parameters.Add(new Npgsql.NpgsqlParameter { NpgsqlDbType = NpgsqlDbType.Uuid, Value = deviceId });
+            cmd.Parameters.Add(new Npgsql.NpgsqlParameter { NpgsqlDbType = NpgsqlDbType.TimestampTz, Value = DateTime.SpecifyKind(from, DateTimeKind.Utc) });
+            cmd.Parameters.Add(new Npgsql.NpgsqlParameter { NpgsqlDbType = NpgsqlDbType.TimestampTz, Value = DateTime.SpecifyKind(to, DateTimeKind.Utc) });
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                results.Add(new MeasurementHistoryDto(
+                    DateTime.SpecifyKind(reader.GetDateTime(0), DateTimeKind.Utc),
+                    reader.GetDouble(1),
+                    reader.GetDouble(2),
+                    reader.GetDouble(3),
+                    reader.GetDouble(4)));
+            }
+        }
+        finally
+        {
+            await context.Database.CloseConnectionAsync();
+        }
+
+        return results;
     }
 }

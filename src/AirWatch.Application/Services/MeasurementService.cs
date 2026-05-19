@@ -58,6 +58,16 @@ public class MeasurementService(IMeasurementRepository measurementRepository, ID
         };
     }
 
+    public async Task<IEnumerable<MeasurementHistoryDto>> GetHistoryAsync(
+        Guid deviceId, Guid userId, DateTime from, DateTime to, string granularity)
+    {
+        var device = await deviceRepository.GetByIdAsync(deviceId);
+        if (device is null || device.UserId != userId)
+            throw new NotFoundException("Dispositivo não encontrado.");
+
+        return await measurementRepository.GetHistoryAsync(deviceId, from, to, granularity);
+    }
+
     private static MeasurementDto ToDto(Measurement m, string deviceExternalId) =>
         new(m.Id, deviceExternalId, m.Timestamp,
             m.Mq3Adc, m.Mq5Adc, m.Mq135Adc,

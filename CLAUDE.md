@@ -17,20 +17,24 @@ AirWatch.Api/             # Controllers, middleware, configuração de DI
 
 ## Background Services (rodam em paralelo)
 - `MqttSubscriberService` — conecta ao broker, assina três tópicos e roteia mensagens:
-  - `airwatch/+/telemetry` — CSV `deviceId,adc_mq3,adc_mq5,adc_mq135`; calcula PPMs e persiste (descarta se não houver calibração ativa)
+  - `airwatch/+/telemetry` — CSV `deviceId,adc_mq3,adc_mq5,adc_mq135`; calcula IQAI/categoria e persiste (descarta se não houver calibração ativa)
   - `airwatch/+/calibration` — mesmo CSV durante modo de calibração; encaminha para `ICalibrationSampleHandler`
   - `airwatch/devices/+/status` — birth messages (`online`) e LWT (`offline`) do ESP
+  - Ao receber `online`, sincroniza LED amarela por MQTT conforme calibração em andamento/ativa/inexistente.
+  - Mantém `_dangerLedState` em memória por `ExternalId` para publicar `led_danger_on/off` apenas em transições de categoria `Perigo`.
 - `CalibrationBackgroundService` — singleton que implementa `IHostedService`, `ICalibrationManager` e `ICalibrationSampleHandler`:
   - Mantém sessões ativas em `ConcurrentDictionary<string, CalibrationSession>` keyed por `ExternalId`
   - `DuracaoSegundos` define a duração de cada sessão (constante no serviço, gravada na tabela por calibração)
   - Ao encerrar o timer: calcula média dos Rs amostrados → grava R0 → status `Completed`. Falha apenas com 0 amostras.
   - `UserCts` por sessão: cancelado exclusivamente via `/cancel`. Safety timer de 120s guarda pelo `CalibrationId` para não cancelar nova sessão do mesmo device.
   - No startup: calibrações `InProgress` no banco são marcadas como `Failed`.
+  - Publica comandos de LED amarela: `led_calibration_blink` ao iniciar, `led_calibration_on` ao concluir, `led_calibration_on/off` ao cancelar/falhar conforme exista calibração ativa.
 
 ## Banco de dados — tabelas principais
 - `users` — autenticação
 - `devices` — `IsOnline`, `LastSeen`, `ExternalId`, `IsActive`, `RlMq3/5/135` (RL de carga do hardware; R0 **não** fica aqui)
-- `measurements` — uma linha por ciclo: `Mq3Adc`, `Mq5Adc`, `Mq135Adc`, `RatioMq3/5/135`, `DegMq3/5/135`, `Iqai`, `IqaiCategory`, `Timestamp`
+- `measurements` — uma linha por ciclo: ADCs MQ3/MQ5/MQ135, ratios, degradações, `Iqai`, `IqaiCategory`, `Timestamp`
+- `sensor_coefficients` — coeficientes de curva por sensor+gás: `SensorType`, `GasTarget`, `CoefA`, `CoefB`, `SafeMax`, `GoodMax`, `AlertMax`
 - `calibrations` — histórico de calibrações:
   - `Id`, `DeviceId`, `StartedAt`, `CompletedAt`, `Status` (`InProgress`/`Completed`/`Cancelled`/`Failed`)
   - `Location`, `SampleCount`, `DuracaoSegundos`
@@ -46,21 +50,24 @@ User:  airwatch
 Estrutura de tópicos (todos implementados):
 - `airwatch/{externalId}/telemetry` — CSV publicado pelo ESP no modo normal
 - `airwatch/{externalId}/calibration` — CSV publicado pelo ESP durante modo de calibração
-- `airwatch/{externalId}/commands` — backend → ESP: `start_calibration` ou `stop_calibration`
+- `airwatch/{externalId}/commands` — backend → ESP:
+  - calibração: `start_calibration`, `stop_calibration`
+  - LED amarela: `led_calibration_off`, `led_calibration_blink`, `led_calibration_on`
+  - LED vermelha/buzzer: `led_danger_off`, `led_danger_on`
 - `airwatch/devices/{externalId}/status` — presença do dispositivo (`online` / `offline`, retain=true)
 
 ## Cadeia de cálculo (ADC → IQAI)
 O backend é o único responsável por todos os cálculos:
-1. `ADC → VRL`:    `vrl = adc * (5.0 / 1023)`
-2. `VRL → Rs`:     `rs = ((5.0 / vrl) - 1.0) * rl`  (RL por sensor em `devices`)
-3. `Rs → ratio`:   `ratio = rs / r0`  (R0 vem da calibração ativa em `calibrations`; **sem calibração ativa → medição descartada**)
-4. `ratio → deg`:  `deg = max(0, -ln(ratio))`  (degradação logarítmica por sensor)
-5. `deg → IQAI`:   `iqai = sqrt((deg_mq3² + deg_mq5² + deg_mq135²) / 3)`  (RMS das degradações)
+1. `ADC → VRL`:  `vrl = adc * (5.0 / 1023)`
+2. `VRL → Rs`:   `rs = ((5.0 / vrl) - 1.0) * rl`  (RL por sensor em `devices`)
+3. `Rs → ratio`: `ratio = rs / r0`  (R0 vem da calibração ativa em `calibrations`; **sem calibração ativa → medição descartada**)
+4. `ratio → deg`: `deg = max(0, -ln(ratio))`
+5. `IQAI`: raiz da média dos quadrados das três degradações
 6. `IQAI → categoria`: ≤0.35 "Boa" | ≤0.70 "Moderada" | ≤1.20 "Alerta" | >1.20 "Perigo"
 
 ## SignalR — eventos emitidos pelo hub `/hubs/device-status`
 - `DeviceStatusChanged` — status online/offline de dispositivo
-- `NewMeasurement` — nova medição com IQAI e IqaiCategory
+- `NewMeasurement` — nova medição com ADCs, ratios, degradações, IQAI e categoria
 - `CalibrationStarted` — `{ deviceId, calibrationId, startedAt, duracaoSegundos }`
 - `CalibrationProgress` — `{ deviceId, calibrationId, progressPercent, sampleCount, currentR0Mq3, currentR0Mq5, currentR0Mq135 }`
 - `CalibrationCompleted` — `{ deviceId, calibrationId, r0Mq3, r0Mq5, r0Mq135 }`
@@ -93,10 +100,16 @@ services.AddSingleton<ICalibrationSampleHandler>(sp => sp.GetRequiredService<Cal
 - Telemetria normal: publicar `arduino-01,293,89,118` em `airwatch/arduino-01/telemetry` (descartada sem calibração ativa)
 - Calibração: publicar mesmo CSV em `airwatch/arduino-01/calibration` com sessão ativa em `_sessions`
 - Status: publicar `online`/`offline` em `airwatch/devices/arduino-01/status` com retain=true
+- Comandos esperados para firmware:
+  - `led_calibration_*` sincroniza LED amarela no Arduino via ESP
+  - `led_danger_on` liga LED vermelha e buzzer passivo; `led_danger_off` desliga ambos
 - O MqttSimulatorService foi removido intencionalmente — não recriar
 
+## API — endpoint de thresholds (público, sem autenticação)
+- `GET /api/sensor-coefficients/thresholds` — retorna `[{ gasTarget, safeMax, goodMax, alertMax }]` para os 4 gases
+
 ## API — endpoint de histórico de medições
-- `GET /api/measurements?deviceId=&from=&to=&granularity=` — série temporal de medições
+- `GET /api/measurements/history?deviceId=&from=&to=&granularity=` — série temporal de IQAI
   - `granularity`: `raw` (medições individuais) | `1min` | `5min` | `1hour` | `6hour` (média por bucket)
   - Retorna `MeasurementHistoryDto[]` — `{ timestamp, iqai, iqaiCategory }`
   - Granularidades agregadas usam SQL raw com `to_timestamp(floor(extract(epoch from "Timestamp") / interval) * interval)` para bucketing eficiente no PostgreSQL (sem EF LINQ)

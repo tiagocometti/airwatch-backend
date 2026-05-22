@@ -56,6 +56,7 @@ public class DeviceService(IDeviceRepository deviceRepository)
 
         device.Name     = dto.Name;
         device.Location = dto.Location;
+        device.IsActive = dto.IsActive ?? device.IsActive;
         await deviceRepository.UpdateAsync(device);
         return ToDto(device);
     }

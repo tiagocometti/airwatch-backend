@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text;
 using AirWatch.Application.Interfaces;
 using AirWatch.Application.Interfaces.Repositories;
@@ -20,6 +21,7 @@ public class MqttSubscriberService(
     IDeviceStatusNotifier   statusNotifier,
     IMeasurementNotifier    measurementNotifier,
     ICalibrationSampleHandler calibrationHandler,
+    IMqttPublisher          mqttPublisher,
     IConfiguration          configuration,
     ILogger<MqttSubscriberService> logger) : BackgroundService
 {
@@ -34,6 +36,13 @@ public class MqttSubscriberService(
 
     private const string StatusTopicFilter      = "airwatch/devices/+/status";
     private const string CalibrationTopicFilter = "airwatch/+/calibration";
+    private const string LedCalibrationOff      = "led_calibration_off";
+    private const string LedCalibrationBlink    = "led_calibration_blink";
+    private const string LedCalibrationOn       = "led_calibration_on";
+    private const string LedDangerOff           = "led_danger_off";
+    private const string LedDangerOn            = "led_danger_on";
+
+    private readonly ConcurrentDictionary<string, bool> _dangerLedState = new();
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -192,12 +201,40 @@ public class MqttSubscriberService(
                 externalId,
                 isOnline,
                 isOnline ? now : device.LastSeen);
+
+            if (isOnline)
+                await PublishCalibrationLedStateAsync(scope.ServiceProvider, externalId, device.Id);
         }
         catch (Exception ex)
         {
             logger.LogError(ex,
                 "MQTT: erro ao processar status do dispositivo '{DeviceId}'.", externalId);
         }
+    }
+
+    private async Task PublishCalibrationLedStateAsync(
+        IServiceProvider serviceProvider,
+        string externalId,
+        Guid deviceId)
+    {
+        var calibrationRepo = serviceProvider.GetRequiredService<ICalibrationRepository>();
+
+        var inProgressCalibrations = await calibrationRepo.GetInProgressAsync();
+        var hasInProgress = inProgressCalibrations.Any(c => c.DeviceId == deviceId);
+
+        var payload = LedCalibrationOff;
+        if (hasInProgress)
+        {
+            payload = LedCalibrationBlink;
+        }
+        else
+        {
+            var activeCalibration = await calibrationRepo.GetActiveByDeviceIdAsync(deviceId);
+            if (activeCalibration is not null)
+                payload = LedCalibrationOn;
+        }
+
+        await mqttPublisher.PublishAsync($"airwatch/{externalId}/commands", payload);
     }
 
     // ─── Handler de calibração (mesmo CSV, durante modo de calibração) ─────────
@@ -273,6 +310,7 @@ public class MqttSubscriberService(
 
             await deviceRepo.UpdateLastSeenAsync(device.Id, measurement.Timestamp);
             await measurementNotifier.NotifyNewMeasurementAsync(dto);
+            await PublishDangerLedStateIfChangedAsync(externalId, dto.IqaiCategory == "Perigo");
 
             logger.LogInformation(
                 "MQTT: medição salva para '{DeviceId}' — IQAI: {Iqai:F3} ({Category}).",
@@ -283,5 +321,16 @@ public class MqttSubscriberService(
             logger.LogError(ex,
                 "MQTT: erro ao processar telemetria do dispositivo '{DeviceId}'.", externalId);
         }
+    }
+
+    private async Task PublishDangerLedStateIfChangedAsync(string externalId, bool isDanger)
+    {
+        var wasDanger = _dangerLedState.GetValueOrDefault(externalId);
+        if (wasDanger == isDanger) return;
+
+        _dangerLedState[externalId] = isDanger;
+        await mqttPublisher.PublishAsync(
+            $"airwatch/{externalId}/commands",
+            isDanger ? LedDangerOn : LedDangerOff);
     }
 }

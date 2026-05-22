@@ -17,6 +17,9 @@ public class CalibrationBackgroundService(
     : IHostedService, ICalibrationManager, ICalibrationSampleHandler
 {
     private const int DuracaoSegundos = 60;
+    private const string LedCalibrationOff   = "led_calibration_off";
+    private const string LedCalibrationBlink = "led_calibration_blink";
+    private const string LedCalibrationOn    = "led_calibration_on";
 
     private readonly ConcurrentDictionary<string, CalibrationSession> _sessions = new();
 
@@ -70,6 +73,7 @@ public class CalibrationBackgroundService(
 
         var commandTopic = $"airwatch/{device.ExternalId}/commands";
         await mqttPublisher.PublishAsync(commandTopic, "start_calibration");
+        await mqttPublisher.PublishAsync(commandTopic, LedCalibrationBlink);
 
         await notifier.NotifyStartedAsync(device.ExternalId, calibrationId, now, DuracaoSegundos);
 
@@ -116,6 +120,7 @@ public class CalibrationBackgroundService(
 
         var commandTopic = $"airwatch/{externalId}/commands";
         await mqttPublisher.PublishAsync(commandTopic, "stop_calibration");
+        await PublishCalibrationLedStateAsync(externalId, session.DeviceId);
 
         await notifier.NotifyCancelledAsync(externalId, calibrationId);
 
@@ -224,6 +229,7 @@ public class CalibrationBackgroundService(
         {
             await FinalizarNoBancoAsync(session.CalibrationId, 0, CalibrationStatus.Failed, DateTime.UtcNow);
             await mqttPublisher.PublishAsync($"airwatch/{externalId}/commands", "stop_calibration");
+            await PublishCalibrationLedStateAsync(externalId, session.DeviceId);
             await notifier.NotifyFailedAsync(externalId, session.CalibrationId, "Nenhuma amostra coletada durante a calibração.");
             logger.LogWarning("Calibração {Id} falhou para '{DeviceId}': sem amostras.", session.CalibrationId, externalId);
             return;
@@ -255,6 +261,7 @@ public class CalibrationBackgroundService(
         }
 
         await mqttPublisher.PublishAsync($"airwatch/{externalId}/commands", "stop_calibration");
+        await mqttPublisher.PublishAsync($"airwatch/{externalId}/commands", LedCalibrationOn);
         await notifier.NotifyCompletedAsync(externalId, session.CalibrationId, mediaMq3, mediaMq5, mediaMq135);
 
         logger.LogInformation(
@@ -282,6 +289,17 @@ public class CalibrationBackgroundService(
         await repo.UpdateAsync(calibration);
     }
 
+    private async Task PublishCalibrationLedStateAsync(string externalId, Guid deviceId)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var repo = scope.ServiceProvider.GetRequiredService<ICalibrationRepository>();
+
+        var activeCalibration = await repo.GetActiveByDeviceIdAsync(deviceId);
+        var payload = activeCalibration is null ? LedCalibrationOff : LedCalibrationOn;
+
+        await mqttPublisher.PublishAsync($"airwatch/{externalId}/commands", payload);
+    }
+
     // ─── Startup cleanup ───────────────────────────────────────────────────────
 
     private async Task CleanupInProgressAsync()
@@ -290,6 +308,7 @@ public class CalibrationBackgroundService(
         {
             using var scope = scopeFactory.CreateScope();
             var repo = scope.ServiceProvider.GetRequiredService<ICalibrationRepository>();
+            var deviceRepo = scope.ServiceProvider.GetRequiredService<IDeviceRepository>();
 
             var stale = await repo.GetInProgressAsync();
             foreach (var c in stale)
@@ -297,6 +316,11 @@ public class CalibrationBackgroundService(
                 c.Status      = CalibrationStatus.Failed;
                 c.CompletedAt = DateTime.UtcNow;
                 await repo.UpdateAsync(c);
+
+                var device = await deviceRepo.GetByIdAsync(c.DeviceId);
+                if (device is not null)
+                    await PublishCalibrationLedStateAsync(device.ExternalId, c.DeviceId);
+
                 logger.LogWarning("Calibração {Id} marcada como Failed (restart do servidor).", c.Id);
             }
         }

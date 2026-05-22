@@ -1,11 +1,15 @@
 using AirWatch.Application.DTOs.Calibrations;
+using AirWatch.Application.Interfaces;
 using AirWatch.Application.Interfaces.Repositories;
 using AirWatch.Domain.Entities;
 using AirWatch.Domain.Exceptions;
 
 namespace AirWatch.Application.Services;
 
-public class CalibrationService(ICalibrationRepository calibrationRepo)
+public class CalibrationService(
+    ICalibrationRepository calibrationRepo,
+    IDeviceRepository deviceRepo,
+    IMqttPublisher mqttPublisher)
 {
     public async Task<IEnumerable<CalibrationDto>> GetByDeviceIdAsync(Guid deviceId)
     {
@@ -31,6 +35,10 @@ public class CalibrationService(ICalibrationRepository calibrationRepo)
 
         calibration.IsActive = true;
         await calibrationRepo.UpdateAsync(calibration);
+
+        var device = await deviceRepo.GetByIdAsync(calibration.DeviceId);
+        if (device is not null)
+            await mqttPublisher.PublishAsync($"airwatch/{device.ExternalId}/commands", "led_calibration_on");
     }
 
     private static CalibrationDto ToDto(Calibration c) =>

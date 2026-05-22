@@ -52,18 +52,6 @@ namespace AirWatch.Infrastructure.Data.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
 
-                    b.Property<double>("R0Mq135")
-                        .HasDefaultValue(76630.0)
-                        .HasColumnType("double precision");
-
-                    b.Property<double>("R0Mq3")
-                        .HasDefaultValue(25000.0)
-                        .HasColumnType("double precision");
-
-                    b.Property<double>("R0Mq5")
-                        .HasDefaultValue(105000.0)
-                        .HasColumnType("double precision");
-
                     b.Property<DateTime>("RegisteredAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -101,6 +89,28 @@ namespace AirWatch.Infrastructure.Data.Migrations
                     b.Property<Guid>("DeviceId")
                         .HasColumnType("uuid");
 
+                    b.Property<double>("DegMq135")
+                        .HasDefaultValue(0.0)
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("DegMq3")
+                        .HasDefaultValue(0.0)
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("DegMq5")
+                        .HasDefaultValue(0.0)
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("Iqai")
+                        .HasDefaultValue(0.0)
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("IqaiCategory")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasDefaultValue("Boa")
+                        .HasColumnType("character varying(20)");
+
                     b.Property<int>("Mq135Adc")
                         .HasColumnType("integer");
 
@@ -110,16 +120,16 @@ namespace AirWatch.Infrastructure.Data.Migrations
                     b.Property<int>("Mq5Adc")
                         .HasColumnType("integer");
 
-                    b.Property<double>("PpmAlcohol")
+                    b.Property<double>("RatioMq135")
+                        .HasDefaultValue(0.0)
                         .HasColumnType("double precision");
 
-                    b.Property<double>("PpmCo2")
+                    b.Property<double>("RatioMq3")
+                        .HasDefaultValue(0.0)
                         .HasColumnType("double precision");
 
-                    b.Property<double>("PpmLpg")
-                        .HasColumnType("double precision");
-
-                    b.Property<double>("PpmNh3")
+                    b.Property<double>("RatioMq5")
+                        .HasDefaultValue(0.0)
                         .HasColumnType("double precision");
 
                     b.Property<DateTime>("Timestamp")
@@ -132,45 +142,6 @@ namespace AirWatch.Infrastructure.Data.Migrations
                     b.HasIndex("Timestamp");
 
                     b.ToTable("measurements", (string)null);
-                });
-
-            modelBuilder.Entity("AirWatch.Domain.Entities.SensorCoefficient", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<double>("AlertMax")
-                        .HasColumnType("double precision");
-
-                    b.Property<double>("CoefA")
-                        .HasColumnType("double precision");
-
-                    b.Property<double>("CoefB")
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("GasTarget")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<double>("GoodMax")
-                        .HasColumnType("double precision");
-
-                    b.Property<double>("SafeMax")
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("SensorType")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SensorType", "GasTarget")
-                        .IsUnique();
-
-                    b.ToTable("sensor_coefficients", (string)null);
                 });
 
             modelBuilder.Entity("AirWatch.Domain.Entities.User", b =>

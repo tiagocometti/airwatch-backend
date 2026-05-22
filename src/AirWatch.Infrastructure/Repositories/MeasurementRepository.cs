@@ -90,7 +90,8 @@ public class MeasurementRepository(AppDbContext context) : IMeasurementRepositor
 
             return items.Select(m => new MeasurementHistoryDto(
                 DateTime.SpecifyKind(m.Timestamp, DateTimeKind.Utc),
-                m.PpmCo2, m.PpmNh3, m.PpmLpg, m.PpmAlcohol));
+                m.Iqai,
+                m.IqaiCategory));
         }
 
         var intervalSeconds = granularity switch
@@ -105,10 +106,8 @@ public class MeasurementRepository(AppDbContext context) : IMeasurementRepositor
         const string sql = """
             SELECT
                 to_timestamp(floor(extract(epoch from "Timestamp") / $1) * $1) AS bucket,
-                AVG("PpmCo2")     AS co2,
-                AVG("PpmNh3")     AS nh3,
-                AVG("PpmLpg")     AS lpg,
-                AVG("PpmAlcohol") AS alcohol
+                AVG("Iqai")         AS iqai,
+                (array_agg("IqaiCategory" ORDER BY "Timestamp" DESC))[1] AS category
             FROM measurements
             WHERE "DeviceId" = $2
               AND "Timestamp" >= $3
@@ -123,10 +122,10 @@ public class MeasurementRepository(AppDbContext context) : IMeasurementRepositor
         {
             await using var cmd = (Npgsql.NpgsqlCommand)context.Database.GetDbConnection().CreateCommand();
             cmd.CommandText = sql;
-            cmd.Parameters.Add(new Npgsql.NpgsqlParameter { NpgsqlDbType = NpgsqlDbType.Integer, Value = intervalSeconds });
-            cmd.Parameters.Add(new Npgsql.NpgsqlParameter { NpgsqlDbType = NpgsqlDbType.Uuid, Value = deviceId });
+            cmd.Parameters.Add(new Npgsql.NpgsqlParameter { NpgsqlDbType = NpgsqlDbType.Integer,     Value = intervalSeconds });
+            cmd.Parameters.Add(new Npgsql.NpgsqlParameter { NpgsqlDbType = NpgsqlDbType.Uuid,        Value = deviceId });
             cmd.Parameters.Add(new Npgsql.NpgsqlParameter { NpgsqlDbType = NpgsqlDbType.TimestampTz, Value = DateTime.SpecifyKind(from, DateTimeKind.Utc) });
-            cmd.Parameters.Add(new Npgsql.NpgsqlParameter { NpgsqlDbType = NpgsqlDbType.TimestampTz, Value = DateTime.SpecifyKind(to, DateTimeKind.Utc) });
+            cmd.Parameters.Add(new Npgsql.NpgsqlParameter { NpgsqlDbType = NpgsqlDbType.TimestampTz, Value = DateTime.SpecifyKind(to,   DateTimeKind.Utc) });
 
             await using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -134,9 +133,7 @@ public class MeasurementRepository(AppDbContext context) : IMeasurementRepositor
                 results.Add(new MeasurementHistoryDto(
                     DateTime.SpecifyKind(reader.GetDateTime(0), DateTimeKind.Utc),
                     reader.GetDouble(1),
-                    reader.GetDouble(2),
-                    reader.GetDouble(3),
-                    reader.GetDouble(4)));
+                    reader.GetString(2)));
             }
         }
         finally

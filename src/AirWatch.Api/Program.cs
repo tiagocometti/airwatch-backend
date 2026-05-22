@@ -129,7 +129,6 @@ builder.Services.AddScoped<MeasurementCalculationService>();
 builder.Services.AddScoped<DeviceService>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<CalibrationService>();
-builder.Services.AddScoped<SensorCoefficientService>();
 
 // CalibrationBackgroundService registrado como singleton para ser injetável via múltiplas interfaces
 builder.Services.AddSingleton<CalibrationBackgroundService>();

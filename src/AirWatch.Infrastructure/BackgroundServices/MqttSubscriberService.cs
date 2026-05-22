@@ -275,8 +275,8 @@ public class MqttSubscriberService(
             await measurementNotifier.NotifyNewMeasurementAsync(dto);
 
             logger.LogInformation(
-                "MQTT: medição salva para '{DeviceId}' — Álcool: {Alc:F1} ppm, GLP: {Lpg:F1} ppm, CO₂: {Co2:F1} ppm, NH₃: {Nh3:F1} ppm.",
-                externalId, dto.PpmAlcohol, dto.PpmLpg, dto.PpmCo2, dto.PpmNh3);
+                "MQTT: medição salva para '{DeviceId}' — IQAI: {Iqai:F3} ({Category}).",
+                externalId, dto.Iqai, dto.IqaiCategory);
         }
         catch (Exception ex)
         {

@@ -30,8 +30,7 @@ AirWatch.Api/             # Controllers, middleware, configuração de DI
 ## Banco de dados — tabelas principais
 - `users` — autenticação
 - `devices` — `IsOnline`, `LastSeen`, `ExternalId`, `IsActive`, `RlMq3/5/135` (RL de carga do hardware; R0 **não** fica aqui)
-- `measurements` — uma linha por ciclo: `Mq3Adc`, `Mq5Adc`, `Mq135Adc`, `PpmAlcohol`, `PpmLpg`, `PpmCo2`, `PpmNh3`, `Timestamp`
-- `sensor_coefficients` — coeficientes de curva por sensor+gás: `SensorType`, `GasTarget`, `CoefA`, `CoefB`, `SafeMax`, `GoodMax`, `AlertMax`
+- `measurements` — uma linha por ciclo: `Mq3Adc`, `Mq5Adc`, `Mq135Adc`, `RatioMq3/5/135`, `DegMq3/5/135`, `Iqai`, `IqaiCategory`, `Timestamp`
 - `calibrations` — histórico de calibrações:
   - `Id`, `DeviceId`, `StartedAt`, `CompletedAt`, `Status` (`InProgress`/`Completed`/`Cancelled`/`Failed`)
   - `Location`, `SampleCount`, `DuracaoSegundos`
@@ -50,20 +49,18 @@ Estrutura de tópicos (todos implementados):
 - `airwatch/{externalId}/commands` — backend → ESP: `start_calibration` ou `stop_calibration`
 - `airwatch/devices/{externalId}/status` — presença do dispositivo (`online` / `offline`, retain=true)
 
-## Cadeia de cálculo (ADC → PPM)
+## Cadeia de cálculo (ADC → IQAI)
 O backend é o único responsável por todos os cálculos:
-1. `ADC → VRL`:  `vrl = adc * (5.0 / 1023)`
-2. `VRL → Rs`:   `rs = ((5.0 / vrl) - 1.0) * rl`  (RL por sensor em `devices`)
-3. `Rs → ratio`: `ratio = rs / r0`  (R0 vem da calibração ativa em `calibrations`; **sem calibração ativa → medição descartada**)
-4. `ratio → PPM`: `ppm = coefA * ratio^coefB`  (coeficientes em `sensor_coefficients`)
-
-- MQ3 → Álcool (coef: a=0.3934, b=-1.5040)
-- MQ5 → GLP (coef: a=217.4972, b=-2.4221)
-- MQ135 → CO₂ (coef: a=110.47, b=-2.862) e NH₃ (coef: a=102.2, b=-2.473)
+1. `ADC → VRL`:    `vrl = adc * (5.0 / 1023)`
+2. `VRL → Rs`:     `rs = ((5.0 / vrl) - 1.0) * rl`  (RL por sensor em `devices`)
+3. `Rs → ratio`:   `ratio = rs / r0`  (R0 vem da calibração ativa em `calibrations`; **sem calibração ativa → medição descartada**)
+4. `ratio → deg`:  `deg = max(0, -ln(ratio))`  (degradação logarítmica por sensor)
+5. `deg → IQAI`:   `iqai = sqrt((deg_mq3² + deg_mq5² + deg_mq135²) / 3)`  (RMS das degradações)
+6. `IQAI → categoria`: ≤0.35 "Boa" | ≤0.70 "Moderada" | ≤1.20 "Alerta" | >1.20 "Perigo"
 
 ## SignalR — eventos emitidos pelo hub `/hubs/device-status`
 - `DeviceStatusChanged` — status online/offline de dispositivo
-- `NewMeasurement` — nova medição com os quatro PPMs
+- `NewMeasurement` — nova medição com IQAI e IqaiCategory
 - `CalibrationStarted` — `{ deviceId, calibrationId, startedAt, duracaoSegundos }`
 - `CalibrationProgress` — `{ deviceId, calibrationId, progressPercent, sampleCount, currentR0Mq3, currentR0Mq5, currentR0Mq135 }`
 - `CalibrationCompleted` — `{ deviceId, calibrationId, r0Mq3, r0Mq5, r0Mq135 }`
@@ -98,13 +95,10 @@ services.AddSingleton<ICalibrationSampleHandler>(sp => sp.GetRequiredService<Cal
 - Status: publicar `online`/`offline` em `airwatch/devices/arduino-01/status` com retain=true
 - O MqttSimulatorService foi removido intencionalmente — não recriar
 
-## API — endpoint de thresholds (público, sem autenticação)
-- `GET /api/sensor-coefficients/thresholds` — retorna `[{ gasTarget, safeMax, goodMax, alertMax }]` para os 4 gases
-
 ## API — endpoint de histórico de medições
-- `GET /api/measurements/history?deviceId=&from=&to=&granularity=` — série temporal de medições
+- `GET /api/measurements?deviceId=&from=&to=&granularity=` — série temporal de medições
   - `granularity`: `raw` (medições individuais) | `1min` | `5min` | `1hour` | `6hour` (média por bucket)
-  - Retorna `MeasurementHistoryDto[]` — `{ timestamp, ppmCo2, ppmNh3, ppmLpg, ppmAlcohol }`
+  - Retorna `MeasurementHistoryDto[]` — `{ timestamp, iqai, iqaiCategory }`
   - Granularidades agregadas usam SQL raw com `to_timestamp(floor(extract(epoch from "Timestamp") / interval) * interval)` para bucketing eficiente no PostgreSQL (sem EF LINQ)
   - Timestamps sempre retornados como UTC (`DateTimeKind.Utc`)
   - Requer autenticação; valida que o device pertence ao usuário via `UserId`

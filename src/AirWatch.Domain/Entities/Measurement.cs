@@ -8,12 +8,18 @@ public class Measurement
 
     public DateTime Timestamp { get; set; }
 
-    public int Mq3Adc    { get; set; }
-    public int Mq5Adc    { get; set; }
-    public int Mq135Adc  { get; set; }
+    public int Mq3Adc   { get; set; }
+    public int Mq5Adc   { get; set; }
+    public int Mq135Adc { get; set; }
 
-    public double PpmAlcohol { get; set; }
-    public double PpmLpg     { get; set; }
-    public double PpmCo2     { get; set; }
-    public double PpmNh3     { get; set; }
+    public double RatioMq3   { get; set; }
+    public double RatioMq5   { get; set; }
+    public double RatioMq135 { get; set; }
+
+    public double DegMq3   { get; set; }
+    public double DegMq5   { get; set; }
+    public double DegMq135 { get; set; }
+
+    public double Iqai         { get; set; }
+    public string IqaiCategory { get; set; } = "Boa";
 }

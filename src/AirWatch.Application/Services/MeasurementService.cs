@@ -71,5 +71,7 @@ public class MeasurementService(IMeasurementRepository measurementRepository, ID
     private static MeasurementDto ToDto(Measurement m, string deviceExternalId) =>
         new(m.Id, deviceExternalId, m.Timestamp,
             m.Mq3Adc, m.Mq5Adc, m.Mq135Adc,
-            m.PpmAlcohol, m.PpmLpg, m.PpmCo2, m.PpmNh3);
+            m.RatioMq3, m.RatioMq5, m.RatioMq135,
+            m.DegMq3, m.DegMq5, m.DegMq135,
+            m.Iqai, m.IqaiCategory);
 }

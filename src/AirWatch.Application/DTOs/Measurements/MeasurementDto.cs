@@ -7,8 +7,12 @@ public record MeasurementDto(
     int      Mq3Adc,
     int      Mq5Adc,
     int      Mq135Adc,
-    double   PpmAlcohol,
-    double   PpmLpg,
-    double   PpmCo2,
-    double   PpmNh3
+    double   RatioMq3,
+    double   RatioMq5,
+    double   RatioMq135,
+    double   DegMq3,
+    double   DegMq5,
+    double   DegMq135,
+    double   Iqai,
+    string   IqaiCategory
 );

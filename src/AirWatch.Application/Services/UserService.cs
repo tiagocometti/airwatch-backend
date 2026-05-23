@@ -42,6 +42,18 @@ public class UserService(IUserRepository userRepository, IPasswordHasher passwor
         return ToDto(user);
     }
 
+    public async Task<UserDto> UpdateProfileAsync(Guid userId, UpdateProfileDto dto)
+    {
+        var user = await userRepository.GetByIdAsync(userId)
+            ?? throw new NotFoundException($"Usuário com id '{userId}' não encontrado.");
+
+        user.Name                      = dto.Name;
+        user.EmailNotificationsEnabled = dto.EmailNotificationsEnabled;
+
+        await userRepository.UpdateAsync(user);
+        return ToDto(user);
+    }
+
     private static UserDto ToDto(User u) =>
-        new(u.Id, u.Name, u.Email, u.CreatedAt);
+        new(u.Id, u.Name, u.Email, u.CreatedAt, u.EmailNotificationsEnabled);
 }

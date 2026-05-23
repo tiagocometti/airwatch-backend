@@ -105,13 +105,13 @@ public class MeasurementRepository(AppDbContext context) : IMeasurementRepositor
 
         const string sql = """
             SELECT
-                to_timestamp(floor(extract(epoch from "Timestamp") / $1) * $1) AS bucket,
-                AVG("Iqai")         AS iqai,
-                (array_agg("IqaiCategory" ORDER BY "Timestamp" DESC))[1] AS category
+                to_timestamp(floor(extract(epoch from timestamp) / $1) * $1) AS bucket,
+                AVG(iqai)         AS iqai,
+                (array_agg(iqai_category ORDER BY timestamp DESC))[1] AS category
             FROM measurements
-            WHERE "DeviceId" = $2
-              AND "Timestamp" >= $3
-              AND "Timestamp" <= $4
+            WHERE device_id = $2
+              AND timestamp >= $3
+              AND timestamp <= $4
             GROUP BY 1
             ORDER BY 1
             """;

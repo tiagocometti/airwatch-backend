@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using AirWatch.Application.DTOs.Users;
 using AirWatch.Application.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -14,6 +15,9 @@ namespace AirWatch.Api.Controllers;
 [Produces("application/json")]
 public class UsersController(UserService userService) : ControllerBase
 {
+    private Guid UserId => Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
+
     /// <summary>
     /// Cadastra um novo usuário no sistema.
     /// </summary>
@@ -80,5 +84,19 @@ public class UsersController(UserService userService) : ControllerBase
     {
         var user = await userService.GetByIdAsync(id);
         return Ok(user);
+    }
+
+    /// <summary>
+    /// Atualiza o nome e as preferências de notificação do usuário autenticado.
+    /// </summary>
+    /// <response code="200">Perfil atualizado com sucesso.</response>
+    /// <response code="400">Dados inválidos.</response>
+    [HttpPut("profile")]
+    [ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto dto)
+    {
+        var result = await userService.UpdateProfileAsync(UserId, dto);
+        return Ok(result);
     }
 }

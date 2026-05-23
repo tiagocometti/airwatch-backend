@@ -8,7 +8,6 @@ public class Device
 
     public string ExternalId { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
-    public string Location { get; set; } = string.Empty;
     public bool IsActive { get; set; }
     public bool IsOnline { get; set; }
     public DateTime? LastSeen { get; set; }

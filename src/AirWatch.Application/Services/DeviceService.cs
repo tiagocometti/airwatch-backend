@@ -19,7 +19,6 @@ public class DeviceService(IDeviceRepository deviceRepository)
             UserId       = userId,
             ExternalId   = dto.ExternalId,
             Name         = dto.Name,
-            Location     = dto.Location,
             IsActive     = true,
             IsOnline     = false,
             RegisteredAt = DateTime.UtcNow
@@ -55,12 +54,11 @@ public class DeviceService(IDeviceRepository deviceRepository)
             throw new NotFoundException($"Dispositivo '{id}' não encontrado.");
 
         device.Name     = dto.Name;
-        device.Location = dto.Location;
         device.IsActive = dto.IsActive ?? device.IsActive;
         await deviceRepository.UpdateAsync(device);
         return ToDto(device);
     }
 
     private static DeviceDto ToDto(Device d) =>
-        new(d.Id, d.ExternalId, d.Name, d.Location, d.IsActive, d.IsOnline, d.LastSeen, d.RegisteredAt);
+        new(d.Id, d.ExternalId, d.Name, d.IsActive, d.IsOnline, d.LastSeen, d.RegisteredAt);
 }

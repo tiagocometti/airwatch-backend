@@ -17,6 +17,6 @@ public class AuthService(IUserRepository userRepository, IPasswordHasher passwor
 
         var (token, expiresAt) = jwtTokenGenerator.Generate(user);
 
-        return new TokenResponseDto(token, expiresAt, user.Name, user.Email);
+        return new TokenResponseDto(token, expiresAt, user.Name, user.Email, user.EmailNotificationsEnabled);
     }
 }

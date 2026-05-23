@@ -4,5 +4,6 @@ public record TokenResponseDto(
     string Token,
     DateTime ExpiresAt,
     string UserName,
-    string Email
+    string Email,
+    bool EmailNotificationsEnabled
 );

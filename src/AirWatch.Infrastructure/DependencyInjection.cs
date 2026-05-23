@@ -1,5 +1,6 @@
 using AirWatch.Application.Interfaces;
 using AirWatch.Application.Interfaces.Repositories;
+using AirWatch.Application.Services;
 using AirWatch.Infrastructure.Data;
 using AirWatch.Infrastructure.Repositories;
 using AirWatch.Infrastructure.Security;
@@ -21,10 +22,17 @@ public static class DependencyInjection
         services.AddScoped<IDeviceRepository, DeviceRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ICalibrationRepository, CalibrationRepository>();
+        services.AddScoped<IAlertRepository, AlertRepository>();
+
+        services.AddScoped<IAlertService, AlertService>();
 
         services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddSingleton<IMqttPublisher, MqttPublisherService>();
+
+        services.Configure<EmailSettings>(opts =>
+            configuration.GetSection("EmailSettings").Bind(opts));
+        services.AddSingleton<IEmailService, MailKitEmailService>();
 
         return services;
     }

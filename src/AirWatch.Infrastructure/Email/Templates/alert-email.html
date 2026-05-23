@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AirWatch — Alerta de Qualidade do Ar</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: #0a0e13;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      color: #e2e8f0;
+      padding: 32px 16px;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    .wrapper {
+      max-width: 580px;
+      margin: 0 auto;
+    }
+
+    /* ── Card principal ──────────────────────────────────── */
+    .card {
+      background-color: #0d1117;
+      border: 1px solid #1e2a36;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    /* ── Logo dentro do card ─────────────────────────────── */
+    .card-header {
+      text-align: center;
+      padding: 28px 32px 24px;
+      border-bottom: 1px solid #1e2a36;
+    }
+
+    .card-logo {
+      display: inline-block;
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: #ffffff;
+    }
+
+    .card-logo span {
+      color: #00e5ff;
+    }
+
+    .card-tagline {
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #4a5568;
+      margin-top: 5px;
+    }
+
+    /* ── Bloco de alerta vermelho ────────────────────────── */
+    .alert-banner {
+      background: linear-gradient(135deg, #1a0505 0%, #1c0a0a 100%);
+      border-bottom: 1px solid rgba(239, 68, 68, 0.3);
+      padding: 24px 32px;
+    }
+
+    .alert-banner h1 {
+      font-size: 17px;
+      font-weight: 700;
+      color: #ef4444;
+      line-height: 1.3;
+      margin-bottom: 6px;
+    }
+
+    .alert-banner p {
+      font-size: 13px;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+
+    /* ── Corpo com dados ─────────────────────────────────── */
+    .body {
+      padding: 28px 32px;
+    }
+
+    .section-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #4a5568;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #1e2a36;
+    }
+
+
+    /* ── IQAI em destaque ────────────────────────────────── */
+    .iqai-block {
+      background: rgba(239, 68, 68, 0.07);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      border-radius: 10px;
+      padding: 20px 24px;
+      text-align: center;
+      margin: 24px 0 28px;
+    }
+
+    .iqai-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+
+    .iqai-value {
+      font-size: 44px;
+      font-weight: 800;
+      color: #ef4444;
+      line-height: 1;
+      letter-spacing: -1px;
+    }
+
+    .iqai-category {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #ef4444;
+      opacity: 0.7;
+      margin-top: 6px;
+    }
+
+    /* ── CTA Button ──────────────────────────────────────── */
+    .cta-wrap {
+      text-align: center;
+      margin: 8px 0 4px;
+    }
+
+    .cta-btn {
+      display: inline-block;
+      background: linear-gradient(135deg, #00c4e0 0%, #00e5ff 100%);
+      color: #0a0e13;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 13px 32px;
+      border-radius: 8px;
+    }
+
+    /* ── Rodapé ──────────────────────────────────────────── */
+    .footer {
+      text-align: center;
+      padding: 24px 32px 32px;
+      border-top: 1px solid #1e2a36;
+    }
+
+    .footer p {
+      font-size: 11px;
+      color: #3a4a5c;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+
+    <div class="card">
+
+      <!-- Logo dentro do card -->
+      <div class="card-header">
+        <div class="card-logo">Air<span>Watch</span></div>
+        <div class="card-tagline">Monitor IoT</div>
+      </div>
+
+      <!-- Alerta vermelho -->
+      <div class="alert-banner">
+        <h1>Atenção! Medição perigosa detectada</h1>
+        <p>Seu dispositivo registrou uma concentração de gases acima do nível seguro. Verifique o ambiente imediatamente.</p>
+      </div>
+
+      <!-- Dados da medição -->
+      <div class="body">
+
+        <div class="section-label">Informações do dispositivo</div>
+
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; margin-bottom: 28px;">
+          <tr>
+            <td style="font-size: 12px; color: #64748b; width: 42%; padding: 10px 16px 10px 0; border-bottom: 1px solid #1a2030; vertical-align: middle;">Dispositivo</td>
+            <td style="font-size: 13px; color: #cbd5e1; font-weight: 500; padding: 10px 0 10px 16px; border-bottom: 1px solid #1a2030; vertical-align: middle;">{{DeviceName}}</td>
+          </tr>
+          <tr>
+            <td style="font-size: 12px; color: #64748b; width: 42%; padding: 10px 16px 10px 0; border-bottom: 1px solid #1a2030; vertical-align: middle;">Horário da medição</td>
+            <td style="font-size: 13px; color: #cbd5e1; font-weight: 500; padding: 10px 0 10px 16px; border-bottom: 1px solid #1a2030; vertical-align: middle;">{{MeasurementTime}}</td>
+          </tr>
+        </table>
+
+        <!-- IQAI em destaque -->
+        <div class="iqai-block">
+          <div class="iqai-label">Índice de Qualidade do Ar (IQAI)</div>
+          <div class="iqai-value">{{IqaiValue}}</div>
+          <div class="iqai-category">Perigo</div>
+        </div>
+
+        <!-- Botão -->
+        <div class="cta-wrap">
+          <a href="{{DashboardUrl}}" class="cta-btn">Ver no Dashboard</a>
+        </div>
+
+      </div>
+
+      <!-- Rodapé -->
+      <div class="footer">
+        <p>Este é um alerta automático do sistema AirWatch. Não responda este email.</p>
+      </div>
+
+    </div>
+
+  </div>
+</body>
+</html>

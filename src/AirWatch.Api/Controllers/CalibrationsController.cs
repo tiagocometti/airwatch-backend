@@ -18,6 +18,9 @@ public class CalibrationsController(
     ICalibrationManager  calibrationManager,
     CalibrationService   calibrationService) : ControllerBase
 {
+    private Guid UserId => Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
+
     /// <summary>
     /// Inicia uma sessão de calibração para o dispositivo especificado.
     /// </summary>
@@ -84,5 +87,21 @@ public class CalibrationsController(
     {
         var item = await calibrationService.GetActiveByDeviceIdAsync(deviceId);
         return item is null ? NoContent() : Ok(item);
+    }
+
+    /// <summary>
+    /// Exclui uma calibração. Rejeita se a calibração estiver em uso (is_active = true).
+    /// </summary>
+    /// <response code="204">Excluída com sucesso.</response>
+    /// <response code="400">A calibração está em uso e não pode ser excluída.</response>
+    /// <response code="404">Calibração não encontrada ou não pertence ao usuário.</response>
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        await calibrationService.DeleteAsync(id, UserId);
+        return NoContent();
     }
 }

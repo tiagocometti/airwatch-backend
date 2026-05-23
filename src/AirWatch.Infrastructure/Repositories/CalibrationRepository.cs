@@ -46,4 +46,10 @@ public class CalibrationRepository(AppDbContext context) : ICalibrationRepositor
             .Where(c => c.DeviceId == deviceId && c.Id != exceptCalibrationId && c.IsActive)
             .ExecuteUpdateAsync(s => s.SetProperty(c => c.IsActive, false));
     }
+
+    public async Task DeleteAsync(Calibration calibration)
+    {
+        context.Calibrations.Remove(calibration);
+        await context.SaveChangesAsync();
+    }
 }

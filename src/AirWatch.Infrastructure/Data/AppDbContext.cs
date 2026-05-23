@@ -10,6 +10,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Device>      Devices      => Set<Device>();
     public DbSet<Measurement> Measurements => Set<Measurement>();
     public DbSet<Calibration> Calibrations => Set<Calibration>();
+    public DbSet<Alert>       Alerts       => Set<Alert>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -17,5 +18,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.ApplyConfiguration(new DeviceConfiguration());
         modelBuilder.ApplyConfiguration(new MeasurementConfiguration());
         modelBuilder.ApplyConfiguration(new CalibrationConfiguration());
+        modelBuilder.ApplyConfiguration(new AlertConfiguration());
     }
 }

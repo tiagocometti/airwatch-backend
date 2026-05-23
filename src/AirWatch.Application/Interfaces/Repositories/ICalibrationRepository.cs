@@ -11,4 +11,5 @@ public interface ICalibrationRepository
     Task AddAsync(Calibration calibration);
     Task UpdateAsync(Calibration calibration);
     Task DeactivateAllByDeviceIdAsync(Guid deviceId, Guid exceptCalibrationId);
+    Task DeleteAsync(Calibration calibration);
 }

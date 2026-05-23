@@ -11,30 +11,30 @@ public class DeviceConfiguration : IEntityTypeConfiguration<Device>
         builder.ToTable("devices");
 
         builder.HasKey(d => d.Id);
+        builder.Property(d => d.Id).HasColumnName("id");
 
         builder.Property(d => d.ExternalId)
             .HasMaxLength(100)
-            .IsRequired();
+            .IsRequired()
+            .HasColumnName("external_id");
 
         builder.HasIndex(d => d.ExternalId)
             .IsUnique();
 
         builder.Property(d => d.Name)
             .HasMaxLength(150)
-            .IsRequired();
+            .IsRequired()
+            .HasColumnName("name");
 
-        builder.Property(d => d.Location)
-            .HasMaxLength(200);
+        builder.Property(d => d.IsActive).IsRequired().HasColumnName("is_active");
+        builder.Property(d => d.IsOnline).IsRequired().HasColumnName("is_online");
+        builder.Property(d => d.LastSeen).HasColumnName("last_seen");
+        builder.Property(d => d.RegisteredAt).IsRequired().HasColumnName("registered_at");
+        builder.Property(d => d.UserId).IsRequired().HasColumnName("user_id");
 
-        builder.Property(d => d.IsActive).IsRequired();
-        builder.Property(d => d.IsOnline).IsRequired();
-        builder.Property(d => d.LastSeen);
-        builder.Property(d => d.RegisteredAt).IsRequired();
-        builder.Property(d => d.UserId).IsRequired();
-
-        builder.Property(d => d.RlMq3).IsRequired().HasDefaultValue(10000.0);
-        builder.Property(d => d.RlMq5).IsRequired().HasDefaultValue(10000.0);
-        builder.Property(d => d.RlMq135).IsRequired().HasDefaultValue(10000.0);
+        builder.Property(d => d.RlMq3).IsRequired().HasDefaultValue(10000.0).HasColumnName("rl_mq3");
+        builder.Property(d => d.RlMq5).IsRequired().HasDefaultValue(10000.0).HasColumnName("rl_mq5");
+        builder.Property(d => d.RlMq135).IsRequired().HasDefaultValue(10000.0).HasColumnName("rl_mq135");
 
         builder.HasIndex(d => d.UserId);
 

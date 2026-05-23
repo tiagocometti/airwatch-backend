@@ -308,6 +308,9 @@ public class MqttSubscriberService(
 
             var dto = await measurementSvc.RecordAsync(measurement, device.ExternalId);
 
+            var alertSvc = scope.ServiceProvider.GetRequiredService<IAlertService>();
+            await alertSvc.ProcessAsync(device, measurement);
+
             await deviceRepo.UpdateLastSeenAsync(device.Id, measurement.Timestamp);
             await measurementNotifier.NotifyNewMeasurementAsync(dto);
             await PublishDangerLedStateIfChangedAsync(externalId, dto.IqaiCategory == "Perigo");

@@ -41,6 +41,21 @@ public class CalibrationService(
             await mqttPublisher.PublishAsync($"airwatch/{device.ExternalId}/commands", "led_calibration_on");
     }
 
+    public async Task DeleteAsync(Guid calibrationId, Guid userId)
+    {
+        var calibration = await calibrationRepo.GetByIdAsync(calibrationId)
+            ?? throw new NotFoundException($"Calibração '{calibrationId}' não encontrada.");
+
+        if (calibration.IsActive)
+            throw new ArgumentException("Não é possível excluir a calibração em uso. Ative outra calibração primeiro.");
+
+        var device = await deviceRepo.GetByIdAsync(calibration.DeviceId);
+        if (device is null || device.UserId != userId)
+            throw new NotFoundException($"Calibração '{calibrationId}' não encontrada.");
+
+        await calibrationRepo.DeleteAsync(calibration);
+    }
+
     private static CalibrationDto ToDto(Calibration c) =>
         new(c.Id, c.DeviceId, c.StartedAt, c.CompletedAt,
             c.Status.ToString(), c.Location,

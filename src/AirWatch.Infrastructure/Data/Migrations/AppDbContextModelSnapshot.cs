@@ -22,53 +22,159 @@ namespace AirWatch.Infrastructure.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("AirWatch.Domain.Entities.Alert", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("DeviceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("device_id");
+
+                    b.Property<bool>("EmailSent")
+                        .HasColumnType("boolean")
+                        .HasColumnName("email_sent");
+
+                    b.Property<DateTime>("TriggeredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("triggered_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeviceId")
+                        .HasDatabaseName("ix_alerts_device_id");
+
+                    b.HasIndex("TriggeredAt")
+                        .HasDatabaseName("ix_alerts_triggered_at");
+
+                    b.ToTable("alerts", (string)null);
+                });
+
+            modelBuilder.Entity("AirWatch.Domain.Entities.Calibration", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<Guid>("DeviceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("device_id");
+
+                    b.Property<int>("DuracaoSegundos")
+                        .HasColumnType("integer")
+                        .HasColumnName("duracao_segundos");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Location")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("location");
+
+                    b.Property<double?>("R0Mq135")
+                        .HasColumnType("double precision")
+                        .HasColumnName("r0_mq135");
+
+                    b.Property<double?>("R0Mq3")
+                        .HasColumnType("double precision")
+                        .HasColumnName("r0_mq3");
+
+                    b.Property<double?>("R0Mq5")
+                        .HasColumnType("double precision")
+                        .HasColumnName("r0_mq5");
+
+                    b.Property<int>("SampleCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("sample_count");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeviceId")
+                        .HasDatabaseName("ix_calibrations_device_id");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_calibrations_status");
+
+                    b.ToTable("calibrations", (string)null);
+                });
+
             modelBuilder.Entity("AirWatch.Domain.Entities.Device", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
 
                     b.Property<string>("ExternalId")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("external_id");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
 
                     b.Property<bool>("IsOnline")
-                        .HasColumnType("boolean");
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_online");
 
                     b.Property<DateTime?>("LastSeen")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Location")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_seen");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(150)
-                        .HasColumnType("character varying(150)");
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("name");
 
                     b.Property<DateTime>("RegisteredAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("registered_at");
 
                     b.Property<double>("RlMq135")
                         .HasDefaultValue(10000.0)
-                        .HasColumnType("double precision");
+                        .HasColumnType("double precision")
+                        .HasColumnName("rl_mq135");
 
                     b.Property<double>("RlMq3")
                         .HasDefaultValue(10000.0)
-                        .HasColumnType("double precision");
+                        .HasColumnType("double precision")
+                        .HasColumnName("rl_mq3");
 
                     b.Property<double>("RlMq5")
                         .HasDefaultValue(10000.0)
-                        .HasColumnType("double precision");
+                        .HasColumnType("double precision")
+                        .HasColumnName("rl_mq5");
 
                     b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
 
                     b.HasKey("Id");
 
@@ -84,56 +190,70 @@ namespace AirWatch.Infrastructure.Data.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("DeviceId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
 
                     b.Property<double>("DegMq135")
                         .HasDefaultValue(0.0)
-                        .HasColumnType("double precision");
+                        .HasColumnType("double precision")
+                        .HasColumnName("deg_mq135");
 
                     b.Property<double>("DegMq3")
                         .HasDefaultValue(0.0)
-                        .HasColumnType("double precision");
+                        .HasColumnType("double precision")
+                        .HasColumnName("deg_mq3");
 
                     b.Property<double>("DegMq5")
                         .HasDefaultValue(0.0)
-                        .HasColumnType("double precision");
+                        .HasColumnType("double precision")
+                        .HasColumnName("deg_mq5");
+
+                    b.Property<Guid>("DeviceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("device_id");
 
                     b.Property<double>("Iqai")
                         .HasDefaultValue(0.0)
-                        .HasColumnType("double precision");
+                        .HasColumnType("double precision")
+                        .HasColumnName("iqai");
 
                     b.Property<string>("IqaiCategory")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasDefaultValue("Boa")
-                        .HasColumnType("character varying(20)");
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("iqai_category");
 
                     b.Property<int>("Mq135Adc")
-                        .HasColumnType("integer");
+                        .HasColumnType("integer")
+                        .HasColumnName("mq135_adc");
 
                     b.Property<int>("Mq3Adc")
-                        .HasColumnType("integer");
+                        .HasColumnType("integer")
+                        .HasColumnName("mq3_adc");
 
                     b.Property<int>("Mq5Adc")
-                        .HasColumnType("integer");
+                        .HasColumnType("integer")
+                        .HasColumnName("mq5_adc");
 
                     b.Property<double>("RatioMq135")
                         .HasDefaultValue(0.0)
-                        .HasColumnType("double precision");
+                        .HasColumnType("double precision")
+                        .HasColumnName("ratio_mq135");
 
                     b.Property<double>("RatioMq3")
                         .HasDefaultValue(0.0)
-                        .HasColumnType("double precision");
+                        .HasColumnType("double precision")
+                        .HasColumnName("ratio_mq3");
 
                     b.Property<double>("RatioMq5")
                         .HasDefaultValue(0.0)
-                        .HasColumnType("double precision");
+                        .HasColumnType("double precision")
+                        .HasColumnName("ratio_mq5");
 
                     b.Property<DateTime>("Timestamp")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("timestamp");
 
                     b.HasKey("Id");
 
@@ -148,25 +268,35 @@ namespace AirWatch.Infrastructure.Data.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("EmailNotificationsEnabled")
+                        .HasDefaultValue(true)
+                        .HasColumnType("boolean")
+                        .HasColumnName("email_notifications_enabled");
 
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("email");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("password_hash");
 
                     b.HasKey("Id");
 
@@ -174,6 +304,35 @@ namespace AirWatch.Infrastructure.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("users", (string)null);
+                });
+
+            modelBuilder.Entity("AirWatch.Domain.Entities.Alert", b =>
+                {
+                    b.HasOne("AirWatch.Domain.Entities.Device", "Device")
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AirWatch.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Device");
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("AirWatch.Domain.Entities.Calibration", b =>
+                {
+                    b.HasOne("AirWatch.Domain.Entities.Device", "Device")
+                        .WithMany("Calibrations")
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Device");
                 });
 
             modelBuilder.Entity("AirWatch.Domain.Entities.Device", b =>
@@ -200,6 +359,7 @@ namespace AirWatch.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("AirWatch.Domain.Entities.Device", b =>
                 {
+                    b.Navigation("Calibrations");
                     b.Navigation("Measurements");
                 });
 #pragma warning restore 612, 618

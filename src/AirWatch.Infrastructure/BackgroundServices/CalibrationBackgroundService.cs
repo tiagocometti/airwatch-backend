@@ -16,7 +16,7 @@ public class CalibrationBackgroundService(
     ILogger<CalibrationBackgroundService> logger)
     : IHostedService, ICalibrationManager, ICalibrationSampleHandler
 {
-    private const int DuracaoSegundos = 60;
+    private const int DuracaoSegundos = 900;
     private const string LedCalibrationOff   = "led_calibration_off";
     private const string LedCalibrationBlink = "led_calibration_blink";
     private const string LedCalibrationOn    = "led_calibration_on";
